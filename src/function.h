@@ -89,6 +89,8 @@ float avgWaterTemp();
 // Forward-declare notification functions used before their definitions
 bool sendPushover(const String& message, const String& title);
 bool sendGotify(const String& msg, const String& title, int priority = 5);
+String calculateEndtimeWatering();
+
 
 // Handle root path "/"
 void handleRoot() {
@@ -1133,10 +1135,16 @@ void handleStartWatering() {
 
     logPrint("[IRRIGATION] Starting watering: " + String(irrigation) + " ml in " + String(irrigationRuns) + " runs of " + String(amountOfWater) + " ml each.");
 
+    if (language == "de") {
+      sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
+    } else {
+      sendPushover("Irrigation started. Duration: " + calculateEndtimeWatering(), "Irrigation started.");
+    }
+
     server.sendHeader("Location", "/");
     server.send(303);
   } else {
-    irrigationRuns = 0;
+    irrigationRuns > 0;
     logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
     server.sendHeader("Location", "/");
     server.send(303);

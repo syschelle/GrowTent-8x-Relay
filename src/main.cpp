@@ -242,6 +242,8 @@ void setup() {
   // start webserver
   server.begin();
   logPrint("[APP] Web server started");
+
+  readTankLevel();
 }
 
 // loop function

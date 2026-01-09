@@ -298,6 +298,21 @@ function checkWateringValue(value) {
   }
 }
 
+// ---------- update tank color ----------
+function updateTankColor(percent) {
+  const card = document.querySelector('.relay-card[data-relay="TankFilling"]');
+
+  card.classList.remove("tank-yellow", "tank-red", "tank-green");
+
+  if (percent <= 10) {
+    card.classList.add("tank-red");
+  } else if (percent <= 30) {
+    card.classList.add("tank-yellow");
+  } else {
+    card.classList.add("tank-green");
+  }
+}
+
 // ---------- irrigation helpers ----------
 function onForTenSec(nr) {
   const idx = nr - 1;
@@ -579,6 +594,7 @@ window.addEventListener('DOMContentLoaded', () => {
       relayStates = data.relays.map(v => !!v);
       updateRelayButtons();
       checkWateringValue(data.curIrrigationRuns.toFixed(0));
+      updateTankColor(data.curTankLevel.toFixed(0));
       }
 
     } catch (error) {

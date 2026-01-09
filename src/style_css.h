@@ -281,6 +281,20 @@ const char* cssContent = R"rawliteral(
     .relay-card.active {
       background-color: #dc3545;
     }
+    
+    .relay-card.tank-green {
+      background-color: #28a745;
+    }
+
+    .relay-card.tank-yellow {
+      background-color: #f1c40f;
+      color: #000;
+    }
+
+    .relay-card.tank-red {
+      background-color: #dc3545;
+      color: #fff;
+    }
 
     .relay-title {
       font-weight: 600;
