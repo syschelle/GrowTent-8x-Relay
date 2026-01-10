@@ -346,4 +346,10 @@ const char* cssContent = R"rawliteral(
       gap: 8px;
     }
 
+    .twoinone-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
 )rawliteral";

@@ -58,7 +58,7 @@ const char* htmlPage = R"rawliteral(
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="title" data-i18n="app.title">%CONTROLLERNAME%</div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
-    <div class='grow-info'>%CURRENTGROW% %CURRENTPHASE%</div>
+    <div class='grow-info'>%CURRENTGROW%<BR>%CURRENTPHASE%</div>
     <div id="grow-line" data-i18n-key="info.growLine"></div>
     <div class="datetime">
       <div id="headerDate"></div>
@@ -97,50 +97,64 @@ const char* htmlPage = R"rawliteral(
       <!-- 3 values side by side -->
       <div class="metrics-row">
         <div class="metric">
-          <div class="metric-label" data-i18n="status.lastTemperature">Temperatur</div>
-          <div class="metric-value">
-            <span id="tempSpan">–</span><span class="unit">°C</span>
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.lastTemperature">Temperatur</div>
+            <div class="metric-value">
+              <span id="tempSpan">–</span><span class="unit">°C</span>
+            </div>
           </div>
           <div class="spacer"></div>
           <div class="metric-sub">
-            <span data-i18n="status.targetTemp">Soll</span>
-            <div class="metric-value">
-              <span id="targetTempStatus">%TARGETTEMPERATURE%</span> <span class="unit">°C</span>
+            <div class="twoinone-label">
+              <span data-i18n="status.targetTemp">Soll</span>
+              <div class="metric-value">
+                <span id="targetTempStatus">%TARGETTEMPERATURE%</span> <span class="unit">°C</span>
+              </div>
             </div>
           </div>
           <div class="spacer"></div>
           <div class="metric-submetric">
-          <div class="metric-label" data-i18n="status.lastWaterTemperature">Wassertemperatur</div>
-          <div class="metric-value">
-            <span id="waterTempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
+            <div class="twoinone-label">
+              <div class="metric-label">%DS18B20NAME%</div>
+              <div class="metric-value">
+                <span id="waterTempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
+            </div>
           </div>
         </div>
         </div>
 
         <div class="metric">
-          <div class="metric-label" data-i18n="status.lasthumidity">rel. Feuchte</div>
-          <div class="metric-value">
-            <span id="humSpan">–</span><span class="unit">%</span>
-          </div>
-        </div>
-
-        <div class="metric">
-          <div class="metric-label" data-i18n="status.lastvpd">VPD</div>
-          <div class="metric-value">
-            <span id="vpdSpan">–</span><span class="unit">kPa</span>
-          </div>
-          <div class="spacer"></div>
-          <div class="metric-sub">
-            <span data-i18n="status.targetVpd">Soll</span>
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.lasthumidity">rel. Feuchte</div>
             <div class="metric-value">
-              <span id="targetVpdStatus">%TARGETVPD%</span> <span class="unit">kPa</span>
+              <span id="humSpan">–</span><span class="unit">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.lastvpd">VPD</div>
+            <div class="metric-value">
+              <span id="vpdSpan">–</span><span class="unit">kPa</span>
             </div>
           </div>
           <div class="spacer"></div>
           <div class="metric-sub">
-            <span data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</span>
-            <div class="metric-value">
-              <span id="leafTempStatus">%LEAFTEMPERATURE%</span> <span class="unit">°C</span>
+            <div class="twoinone-label">
+              <span data-i18n="status.targetVpd">Soll</span>
+              <div class="metric-value">
+                <span id="targetVpdStatus">%TARGETVPD%</span> <span class="unit">kPa</span>
+              </div>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <div class="metric-sub">
+            <div class="twoinone-label">
+              <span data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</span>
+              <div class="metric-value">
+                <span id="leafTempStatus">%LEAFTEMPERATURE%</span> <span class="unit">°C</span>
+              </div>
             </div>
           </div>
         </div>
@@ -148,28 +162,34 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.averagesLastHour">Durchschnittswerte der letzten Stunde</h2>
       <div class="metrics-row averages-row">
         <div class="metric">
-          <div class="metric-label" data-i18n="status.avgTemperature">Ø Temperatur</div>
-          <div class="metric-value">
-            <span id="avgTempSpan">%AVGTEMP%</span><span class="unit">°C</span>
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.avgTemperature">Ø Temperatur</div>
+            <div class="metric-value">
+              <span id="avgTempSpan">%AVGTEMP%</span><span class="unit">°C</span>
+            </div>
           </div>
           <div class="spacer"></div>
-          <div class="metric-submetric">
-            <div class="metric-label" data-i18n="status.avgWaterTemperature">Ø Wassertemperatur</div>
+          <div class="twoinone-label">
+            <div class="metric-label">Ø</div><div class="metric-label">%DS18B20NAME%</div>
             <div class="metric-value">
               <span id="avgWaterTempSpan">%AVGWATERTEMP%</span><span class="unit">°C</span>
             </div>
           </div>
         </div>
         <div class="metric">
-          <div class="metric-label" data-i18n="status.avgHumidity">Ø rel. Feuchte</div>
-          <div class="metric-value">
-            <span id="avgHumSpan">%AVGHUM%</span><span class="unit">%</span>
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.avgHumidity">Ø rel. Feuchte</div>
+            <div class="metric-value">
+              <span id="avgHumSpan">%AVGHUM%</span><span class="unit">%</span>
+            </div>
           </div>
         </div>
         <div class="metric">
-          <div class="metric-label" data-i18n="status.avgVpd">Ø VPD</div>
-          <div class="metric-value">
-            <span id="avgVpdSpan">%AVGVPD%</span><span class="unit">kPa</span>
+          <div class="twoinone-label">
+            <div class="metric-label" data-i18n="status.avgVpd">Ø VPD</div>
+            <div class="metric-value">
+              <span id="avgVpdSpan">%AVGVPD%</span><span class="unit">kPa</span>
+            </div>
           </div>
         </div>
       </div>
@@ -177,7 +197,6 @@ const char* htmlPage = R"rawliteral(
       <!-- ... wie oben eingefügt ... -->
     </div>
 
-    <div class="spacer"></div>
     <h2 data-i18n="status.relayIrrigation">Bewässerungssteuerung</h2>
     <div class="relay-row" id="pumpRow">
       <div class="relay-card" data-relay="6">
@@ -471,6 +490,18 @@ const char* htmlPage = R"rawliteral(
             <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
             <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
           </select>
+        </div>
+
+        <h2 data-i18n="settings.DS18B20">DS18B20 Sensor</h2>        
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+           <input type="checkbox" name="webDS18B20Enable" id="webDS18B20Enable" %DS18B20ENABLE%>
+           <span data-i18n="settings.enabled">aktivieren</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" style="width: 250px;" maxlength="15" value="%DS18B20NAME%">
         </div>
 
         <h2 data-i18n="settings.relaySettings">Relais Einstellungen</h2>

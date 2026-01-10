@@ -128,9 +128,9 @@ void handleRoot() {
       String days = String(daysSinceStartInt);
       String weeks = String(weeksSinceStartInt);
       if (language == "de") {
-        html.replace("%CURRENTPHASE%", " | <font color=\"lightgreen\">Wachstumsphase: Tag " + days + " / Woche " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Wachstum: Tag " + days + " / Woche " + weeks + "</font>");
       } else {
-        html.replace("%CURRENTPHASE%", " | <font color=\"lightgreen\">Vegetative phase: day " + days + " / week " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Vegetative: day " + days + " / week " + weeks + "</font>");
       }
     } else if (curPhase == 2) {
       int daysSinceStartInt = 0;
@@ -139,9 +139,9 @@ void handleRoot() {
       String days = String(daysSinceStartInt);
       String weeks = String(weeksSinceStartInt);
       if (language == "de") {
-        html.replace("%CURRENTPHASE%", " | <font color=\"#ff9900\">Blütephase: Tag " + days + " / Woche " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Blüte: Tag " + days + " / Woche " + weeks + "</font>");
       } else {
-        html.replace("%CURRENTPHASE%", " | <font color=\"#ff9900\">Flowering phase: day " + days + " / week " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Flowering: day " + days + " / week " + weeks + "</font>");
       }
     } else if (curPhase == 3) {
       int daysSinceStartInt = 0;
@@ -150,9 +150,9 @@ void handleRoot() {
       String days = String(daysSinceStartInt);
       String weeks = String(weeksSinceStartInt);
       if (language == "de") {
-        html.replace("%CURRENTPHASE%", " | <font color=\"lightblue\">Trocknungsphase: Tage " + days + " / Woche " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"lightblue\">Trocknung: Tage " + days + " / Woche " + weeks + "</font>");
       } else {
-        html.replace("%CURRENTPHASE%", " | <font color=\"lightblue\">Drying phase: day " + days + " / week " + weeks + "</font>");
+        html.replace("%CURRENTPHASE%", "<font color=\"lightblue\">Drying: day " + days + " / week " + weeks + "</font>");
       }
     } else {
       html.replace("%CURRENTPHASE%", "");
@@ -211,6 +211,8 @@ void handleRoot() {
     html.replace("%LANGUAGE%", language);
     html.replace("%TIMEFORMAT%", timeFormat);
     html.replace("%UNIT%", unit);
+    html.replace("%DS18B20ENABLE%", DS18B20Enable);
+    html.replace("%DS18B20NAME%", DS18B20Name);
 
     html.replace("%PUSHOVERENABLED%", pushoverEnabled);
     html.replace("%PUSHOVERAPPKEY%", pushoverAppKey);
@@ -276,6 +278,9 @@ void readPreferences() {
   theme = preferences.isKey(KEY_THEME) ? preferences.getString(KEY_THEME) : String("light");
   unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
   timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
+  DS18B20Enable = preferences.isKey(KEY_DS18B20ENABLE) ? preferences.getString(KEY_DS18B20ENABLE) : String("");
+  if (DS18B20Enable == "checked") DS18B20 = true;
+  DS18B20Name = preferences.isKey(KEY_DS18NAME) ? preferences.getString(KEY_DS18NAME) : String("");
   // notification settings
   pushoverEnabled = preferences.isKey(KEY_PUSHOVER) ? preferences.getString(KEY_PUSHOVER) : String("");
   if (pushoverEnabled == "checked") pushoverSent = true;  
@@ -463,38 +468,52 @@ void handleSaveSettings() {
     logPrint("[PREFERENCES] " + String(KEY_UNIT) + " written bytes: " + unit);
   }
 
-    if (server.hasArg("webRelayName1")) {
+  if (server.arg("webDS18B20Enable") == "on") {
+    DS18B20Enable = "checked";
+  } else {
+    DS18B20Enable = "";
+  }
+  logPrint("[PREFERENCES] " + String(KEY_DS18B20ENABLE) + " " + String(DS18B20Enable));
+  preferences.putString(KEY_DS18B20ENABLE, DS18B20Enable);
+
+  if (server.hasArg("webDS18B20Name")) {
+    DS18B20Name = server.arg("webDS18B20Name");
+    preferences.putString(KEY_DS18NAME, DS18B20Name);
+    logPrint("[PREFERENCES] ds18b20_name written bytes: " + DS18B20Name);
+  }
+
+  if (server.hasArg("webRelayName1")) {
     String v = server.arg("webRelayName1");
     preferences.putString(KEY_RELAY_1, v);
-    logPrint("[Preferences] " + String(KEY_RELAY_1) + " written bytes: " + v);
+    logPrint("[PREFERENCES] " + String(KEY_RELAY_1) + " written bytes: " + v);
     relayNames[0] = strdup(v.c_str());
   }
 
   if (server.hasArg("webRelayName2")) {
     String v = server.arg("webRelayName2");
     preferences.putString(KEY_RELAY_2, v);
-    logPrint("[Preferences] " + String(KEY_RELAY_2) + " written bytes: " + v);
+    logPrint("[PREFERENCES] " + String(KEY_RELAY_2) + " written bytes: " + v);
     relayNames[1] = strdup(v.c_str());
   }
 
   if (server.hasArg("webRelayName3")) {
     String v = server.arg("webRelayName3");
     preferences.putString(KEY_RELAY_3, v);
-    logPrint("[Preferences] " + String(KEY_RELAY_3) + " written bytes: " + v);
+    logPrint("[PREFERENCES] " + String(KEY_RELAY_3) + " written bytes: " + v);
     relayNames[2] = strdup(v.c_str());
   }
 
   if (server.hasArg("webRelayName4")) {
     String v = server.arg("webRelayName4");
     preferences.putString(KEY_RELAY_4, v);
-    logPrint("[Preferences] " + String(KEY_RELAY_4) + " written bytes: " + v);
+    logPrint("[PREFERENCES] " + String(KEY_RELAY_4) + " written bytes: " + v);
     relayNames[3] = strdup(v.c_str());
   }
 
   if (server.hasArg("webRelayName5")) {
     String v = server.arg("webRelayName5");
     preferences.putString(KEY_RELAY_5, v);
-    logPrint("[Preferences] " + String(KEY_RELAY_5) + " written bytes: " + v);
+    logPrint("[PREFERENCES] " + String(KEY_RELAY_5) + " written bytes: " + v);
     relayNames[4] = strdup(v.c_str());
   }
 
@@ -779,14 +798,16 @@ float avgWaterTemp() {
 
 // Read sensor temperature, humidity and vpd and DS18B20 water temperature
 String readSensorData() {
-
-  sensors.requestTemperatures();
-  float dsTemp = sensors.getTempCByIndex(0);
-  // only update global water temp if valid
-  if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
-    DS18B20STemperature = dsTemp;
-  } else {
-    logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
+  // read DS18B20 water temperature if enabled
+  if (DS18B20) {
+    sensors.requestTemperatures();
+    float dsTemp = sensors.getTempCByIndex(0);
+    // only update global water temp if valid
+    if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
+      DS18B20STemperature = dsTemp;
+    } else {
+      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
+    }
   }
   
   // we will ALWAYS return valid JSON, even if BME not available or not time yet
@@ -847,9 +868,9 @@ String readSensorData() {
     json += "\"curTemperature\":null,\n";
   } 
   if (!isnan(DS18B20STemperature)) {
-    json += "\"curWaterTemperature\":" + String(DS18B20STemperature, 1) + ",\n";
+    json += "\"cur" + DS18B20Name + "\":" + String(DS18B20STemperature, 1) + ",\n";
   } else {
-    json += "\"curWaterTemperature\":null,\n";
+    json += "\"cur" + DS18B20Name + "\":null,\n";
   }
   if (!isnan(lastHumidity)) {
     json += "\"curHumidity\":" + String(lastHumidity, 0) + ",\n";
@@ -887,9 +908,9 @@ String readSensorData() {
     json += "\"avgTemperature\":null,\n";
   }
   if (!isnan(avgWaterTemp())) {
-    json += "\"avgWaterTemperature\":" + String(avgWaterTemp(), 1) + ",\n";
+    json += "\"avg" + DS18B20Name + "\":" + String(avgWaterTemp(), 1) + ",\n";
   } else {
-    json += "\"avgWaterTemperature\":null,\n";
+    json += "\"avg" + DS18B20Name + "\":null,\n";
   }
   if (!isnan(avgHum())) {
     json += "\"avgHumidity\":" + String(avgHum(), 0) + ",\n";

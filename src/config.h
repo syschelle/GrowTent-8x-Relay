@@ -75,21 +75,23 @@ static const char* KEY_RELAY_START_8;
 static const char* KEY_RELAY_END_8;
 
 // settings
-static const char* KEY_NAME    = "boxName";
-static const char* KEY_LANG    = "lang";
-static const char* KEY_THEME   = "theme";
-static const char* KEY_UNIT    = "unit";
-static const char* KEY_TFMT    = "timeFmt";
-static const char* KEY_NTPSRV  = "ntpSrv";
-static const char* KEY_TZINFO  = "tzInfo";
-static const char* KEY_RELAY_1 = "relay1";
-static const char* KEY_RELAY_2 = "relay2";
-static const char* KEY_RELAY_3 = "relay3";
-static const char* KEY_RELAY_4 = "relay4";
-static const char* KEY_RELAY_5 = "relay5";
-static const char* KEY_RELAY_6 = "relay6";
-static const char* KEY_RELAY_7 = "relay7";
-static const char* KEY_RELAY_8 = "relay8";
+static const char* KEY_NAME     = "boxName";
+static const char* KEY_LANG     = "lang";
+static const char* KEY_THEME    = "theme";
+static const char* KEY_UNIT     = "unit";
+static const char* KEY_TFMT     = "timeFmt";
+static const char* KEY_NTPSRV   = "ntpSrv";
+static const char* KEY_TZINFO   = "tzInfo";
+static const char* KEY_DS18B20ENABLE  = "ds18b20enable";
+static const char* KEY_DS18NAME = "ds18b20Name";
+static const char* KEY_RELAY_1  = "relay1";
+static const char* KEY_RELAY_2  = "relay2";
+static const char* KEY_RELAY_3  = "relay3";
+static const char* KEY_RELAY_4  = "relay4";
+static const char* KEY_RELAY_5  = "relay5";
+static const char* KEY_RELAY_6  = "relay6";
+static const char* KEY_RELAY_7  = "relay7";
+static const char* KEY_RELAY_8  = "relay8";
 
 static const char* KEY_PUSHOVER = "pushover";
 static const char* KEY_PUSHOVERAPP = "pushoverAppKey";
@@ -113,6 +115,9 @@ bool bmeAvailable = false;
 // DS18B20 Configuration
 #define DS18B20_PIN 4
 volatile float DS18B20STemperature = NAN;
+bool DS18B20 = false;
+String DS18B20Enable = "";
+String DS18B20Name = "";
 
 // Relay Configuration
 #define NUM_RELAYS 8
