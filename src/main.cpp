@@ -181,10 +181,12 @@ void setup() {
   server.on("/save", HTTP_POST, handleSaveWiFi);
   // route for saving runsettings
   server.on("/saverunsettings", HTTP_POST, handleSaveRunsettings);
-  // route for saving message settings
-  server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
+  // route for saving Shelly settings
+   server.on("/saveshellysettings", HTTP_POST, handleSaveShellySettings);
   // route for saving general settings
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
+  // route for saving message settings
+  server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
   // route for CSS
   server.on("/style.css", []() {
     server.send(200, "text/css", cssContent);

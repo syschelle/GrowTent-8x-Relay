@@ -8,7 +8,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiClientSecure.h>
+#include <IPAddress.h>
 #include <HTTPClient.h>
+
+// Include platform-specific headers for inet_ntoa
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+#include <lwip/inet.h>
+#endif
+
 
 // If no pin is defined elsewhere, default to GPIO4
 #ifndef DS18B20_PIN
@@ -205,6 +212,11 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
+    html.replace("%SHELLYHEATERIP%", shellyHeaterDevice);
+    html.replace("%SHELLYHUMIDIFIERIP%", shellyHumidifierDevice);
+    html.replace("%SHELLYUSERNAME%", shellyUser);
+    html.replace("%SHELLYPASSWORD%", shellyPass);
+
     html.replace("%NTPSERVER%", ntpServer);
     html.replace("%TZINFO%", tzInfo);
     html.replace("%THEME%", theme);
@@ -270,6 +282,12 @@ void readPreferences() {
   relaySchedulesEnabled[4] = preferences.getBool("relay_enable_5", false);
   relaySchedulesStart[4] = preferences.getInt(KEY_RELAY_START_5, 0);
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
+
+  shellyHeaterDevice = preferences.isKey(KEY_SHELLYHEATIP) ? preferences.getString(KEY_SHELLYHEATIP) : String("");
+  shellyHumidifierDevice = preferences.isKey(KEY_SHELLYHUMIP) ? preferences.getString(KEY_SHELLYHUMIP) : String("");
+  shellyUser = preferences.isKey(KEY_SHELLYUSERNAME) ? preferences.getString(KEY_SHELLYUSERNAME) : String("");
+  shellyPass = preferences.isKey(KEY_SHELLYPASSWORD) ? preferences.getString(KEY_SHELLYPASSWORD) : String("");
+
   // settings
   boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
   ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
@@ -399,6 +417,54 @@ void handleSaveRunsettings() {
     maxTank = server.arg("webMaxTank").toFloat();
     preferences.putFloat(KEY_MAXTANK, maxTank);
     logPrint("[PREFERENCES] " + String(KEY_MAXTANK) + " written: " + String(maxTank, 0));
+  }
+
+  preferences.end(); // always close Preferences handle
+
+  // Send redirect response and restart the ESP
+  server.sendHeader("Location", "/");
+  server.send(303);  // HTTP redirect to status page
+  delay(250);
+  ESP.restart();
+}
+
+// Handle Shelly settings save
+void handleSaveShellySettings() {
+  // Open the Preferences namespace with write access (readOnly = false)
+  // Only call begin() once — calling it twice can cause writes to fail!
+  if (!preferences.begin(PREF_NS, false)) {
+    logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
+             "Check that PREF_NS length <= 15 characters.");
+    server.send(500, "text/plain", "Failed to open Preferences");
+    return;
+  }
+
+  // Save Shelly Heater IP if provided
+  if (server.hasArg("webShellyHeatIP")) {
+    shellyHeaterDevice = server.arg("webShellyHeatIP");
+    preferences.putString(KEY_SHELLYHEATIP, shellyHeaterDevice);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYHEATIP) + " written bytes: " + shellyHeaterDevice);
+  }
+
+  // Save Shelly Humidifier IP if provided
+  if (server.hasArg("webShellyHumIP")) {
+    shellyHumidifierDevice = server.arg("webShellyHumIP");
+    preferences.putString(KEY_SHELLYHUMIP, shellyHumidifierDevice);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYHUMIP) + " written bytes: " + shellyHumidifierDevice);
+  }
+
+  // Save Shelly Username if provided
+  if (server.hasArg("webShellyUsername")) {
+    shellyUser = server.arg("webShellyUsername");
+    preferences.putString(KEY_SHELLYUSERNAME, shellyUser);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYUSERNAME) + " written bytes: " + shellyUser);
+  }
+
+  // Save Shelly Password if provided
+  if (server.hasArg("webShellyPassword")) {
+    shellyPass = server.arg("webShellyPassword");
+    preferences.putString(KEY_SHELLYPASSWORD, shellyPass);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYPASSWORD) + " written bytes: " + shellyPass);
   }
 
   preferences.end(); // always close Preferences handle
@@ -1275,4 +1341,141 @@ bool sendGotify(const String& msg, const String& title, int priority) {
     return false;
   }
   
+}
+
+// Helper: make base URL from ShellyDevice (with IPv6 handling)
+static String makeBaseUrl(const ShellyDevice& d) {
+  String h = d.host;
+
+  // Wenn es nach IPv6 aussieht (enthält ":"), und nicht schon [ ] hat → klammern
+  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
+    h = "[" + h + "]";
+  }
+
+  String url = "http://" + h;
+  if (d.port != 80) url += ":" + String(d.port);
+  return url;
+}
+
+// Helper: remove [ ] from host if present
+static String stripBrackets(String h) {
+  h.trim();
+  if (h.startsWith("[") && h.endsWith("]")) {
+    h = h.substring(1, h.length() - 1);
+  }
+  return h;
+}
+
+// Detect host type: "IPv4", "IPv6", "DNS"
+String detectHostType(const String& hostInput) {
+  String h = hostInput;
+  h.trim();
+
+  // [IPv6] → IPv6
+  if (h.startsWith("[") && h.endsWith("]")) {
+    h = h.substring(1, h.length() - 1);
+  }
+
+  // IPv4?
+  IPAddress ip4;
+  if (ip4.fromString(h)) {
+    return "IPv4";
+  }
+
+  // IPv6? Heuristic: IPv6 literals contain multiple ':' characters (portable fallback)
+  int colonCount = 0;
+  for (unsigned int i = 0; i < h.length(); ++i) {
+    if (h.charAt(i) == ':') ++colonCount;
+  }
+  if (colonCount >= 2) {
+    return "IPv6";
+  }
+
+  // sonst: DNS / Hostname
+  return "DNS";
+}
+
+// HTTP GET JSON from Shelly device
+static bool httpGetJson(const ShellyDevice& d, const String& path, JsonDocument& doc) {
+  HTTPClient http;
+  const String url = makeBaseUrl(d) + path;
+
+  http.begin(url);
+  if (d.User.length()) http.setAuthorization(d.User.c_str(), d.Pass.c_str());
+
+  int code = http.GET();
+  if (code <= 0) { http.end(); return false; }
+
+  String body = http.getString();
+  http.end();
+
+  return deserializeJson(doc, body) == DeserializationError::Ok;
+}
+
+// Get values from Shelly device
+ShellyValues getShellyValues(
+  const String& host,     // IPv4 / IPv6 / DNS
+  uint8_t gen,            // 1 = Gen1, 2 = Gen2/Gen3
+  uint8_t switchId = 0,
+  uint16_t port = 80,
+  const String& user = "",
+  const String& pass = ""
+) {
+  ShellyValues v;
+
+  // --- Host normalisieren (IPv6 → [ ])
+  String h = host;
+  h.trim();
+  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
+    h = "[" + h + "]";
+  }
+
+  String baseUrl = "http://" + h;
+  if (port != 80) baseUrl += ":" + String(port);
+
+  HTTPClient http;
+  String url;
+
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  DynamicJsonDocument doc(2048);
+  #pragma GCC diagnostic pop
+
+  // --- Gen1
+  if (gen == 1) {
+    url = baseUrl + "/status";
+    http.begin(url);
+    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
+
+    if (http.GET() <= 0) { http.end(); return v; }
+
+    String body = http.getString();
+    http.end();
+    if (deserializeJson(doc, body)) return v;
+
+    v.isOn     = doc["relays"][switchId]["ison"] | false;
+    v.powerW   = doc["meters"][switchId]["power"] | NAN;
+    v.energyWh = doc["meters"][switchId]["total"] | NAN;
+  }
+  // --- Gen2 / Gen3
+  else {
+    url = baseUrl + "/rpc/Switch.GetStatus?id=" + String(switchId);
+    http.begin(url);
+    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
+
+    if (http.GET() <= 0) { http.end(); return v; }
+
+    String body = http.getString();
+    http.end();
+    if (deserializeJson(doc, body)) return v;
+
+    v.isOn     = doc["output"] | false;
+    v.powerW   = doc["apower"] | NAN;
+    v.voltageV = doc["voltage"] | NAN;
+    v.currentA = doc["current"] | NAN;
+    v.energyWh = doc["aenergy"]["total"] | NAN;
+  }
+
+  v.ok = true;
+  return v;
 }

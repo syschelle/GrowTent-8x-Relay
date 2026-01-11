@@ -69,6 +69,7 @@ const char* htmlPage = R"rawliteral(
     <nav class="sidebar" id="sidebar">
       <a class="navlink" data-page="status"   data-i18n="nav.status">Status</a>
       <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungen</a>
+      <a class="navlink" data-page="shelly" data-i18n="nav.shelly">Shelly Einstellungen</a>
       <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
       <a class="navlink" data-page="message" data-i18n="nav.message">Push-Einstellungen</a>
       <a class="navlink" data-page="logging" data-i18n="nav.logging">Systemprotokoll</a>
@@ -275,8 +276,56 @@ const char* htmlPage = R"rawliteral(
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(5)">Toggle</button>
       </div>
     </div>
+
+    <div class="spacer"></div>
+    <h2 data-i18n="status.shellyControl">Shelly Steuerung</h2>
+    <div class="relay-row" id="relayRow">
+      <div class="relay-card" data-relay="shellyHeater">
+        <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
+        <div class="relay-status" id="shellyHeaterStatus"></div>
+        <div class="info">%SHELLYHEATERIP%</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHeater()">Toggle</button>
+      </div>
+      <div class="relay-card" data-relay="shellyHumidifier">
+        <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
+        <div class="relay-status" id="shellyHumidifierStatus"></div>
+        <div class="info">%SHELLYHUMIDIFIERIP%</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHumidifier()">Toggle</button>
+      </div>
+    </div>
     </section>
     
+    <!-- shellysettings section -->
+    <form action="/saveshellysettings" method="POST">
+    <section id="shelly" class="page card">
+      <h1 data-i18n="shelly.title">Shelly Einstellungen</h1>
+      <h2 data-i18n="status.shellyDevices">Shelly Geräte</h2>
+      <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
+        <input name="webShellyHeatIP" id="shellyIP" style="width: 300px;" type="text" value="%SHELLYHEATERIP%">
+      </div>
+
+      <div class="form-group">
+        <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
+        <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 300px;" type="text" value="%SHELLYHUMIDIFIERIP%">
+      </div>
+
+      <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
+      <div class="form-group">
+        <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
+        <input name="webShellyUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHELLYUSERNAME%">
+      </div>
+
+      <div class="form-group">
+        <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
+        <input name="webShellyPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHELLYPASSWORD%">
+      </div>
+      
+      <div class="spacer"></div>
+        <button class="primary" id="saveshellysettingsBtn" data-i18n="settings.save">Speichern</button>
+    </section>
+    </form>
+
     <!-- runsettings section -->
     <form action="/saverunsettings" method="POST">
     <section id="runsettings" class="page card">

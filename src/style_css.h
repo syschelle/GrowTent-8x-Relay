@@ -352,4 +352,10 @@ const char* cssContent = R"rawliteral(
       gap: 4px;
     }
 
+    .info {
+      font-size: 0.6rem;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+
 )rawliteral";

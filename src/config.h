@@ -14,6 +14,45 @@ const char* KEY_APPASSWORD = "12345678";
 String ssidName = "";
 String ssidPassword = "";
 
+// Shelly device configuration
+//ShellyDevice plugGen1_ipv4 { ShellyGen::Gen1,    "192.168.1.40", 80, 0 };
+//ShellyDevice plugPlus_dns  { ShellyGen::Gen2Plus,"shelly-plus-plug.local", 80, 0 };
+//ShellyDevice plugG3_ipv6   { ShellyGen::Gen2Plus,"2001:db8::1234", 80, 0 };
+enum class ShellyGen : uint8_t { Gen1 = 1, Gen2Plus = 2 };
+String shellyHeaterDevice;
+String shellyHumidifierDevice;
+// optional Basic Auth:
+String shellyUser;
+String shellyPass;
+
+// Host kind enumeration
+enum class HostKind : uint8_t {
+  IPv4,
+  IPv6,
+  DNS
+};
+
+// Structure to hold Shelly device info
+struct ShellyDevice {
+  ShellyGen gen;
+  String host;        // e.g. "192.168.1.10" or "shellyplug.local" or "2001:db8::1"
+  uint16_t port = 80; // normal 80
+  uint8_t switchId = 0;
+
+  String User = shellyUser;  // optional Basic Auth username
+  String Pass = shellyPass;  // optional Basic Auth password
+};
+
+struct ShellyValues {
+  bool ok = false;
+  bool isOn = false;
+
+  float powerW   = NAN;
+  float voltageV = NAN;
+  float currentA = NAN;
+  float energyWh = NAN;
+};
+
 // Pushover notification settings
 bool pushoverSent = false;
 String pushoverEnabled = "";
@@ -74,6 +113,11 @@ static const bool KEY_RELAY_ENABLE_8 = false;
 static const char* KEY_RELAY_START_8;
 static const char* KEY_RELAY_END_8;
 
+static const char* KEY_SHELLYHEATIP = "shellyHeatIP";
+static const char* KEY_SHELLYHUMIP = "shellyHumIP";
+static const char* KEY_SHELLYUSERNAME = "shellyUser";
+static const char* KEY_SHELLYPASSWORD = "shellyPass";
+
 // settings
 static const char* KEY_NAME     = "boxName";
 static const char* KEY_LANG     = "lang";
@@ -93,6 +137,7 @@ static const char* KEY_RELAY_6  = "relay6";
 static const char* KEY_RELAY_7  = "relay7";
 static const char* KEY_RELAY_8  = "relay8";
 
+// notification keys
 static const char* KEY_PUSHOVER = "pushover";
 static const char* KEY_PUSHOVERAPP = "pushoverAppKey";
 static const char* KEY_PUSHOVERUSER = "pushoverUser";
