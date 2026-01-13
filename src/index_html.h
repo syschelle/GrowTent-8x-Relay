@@ -302,12 +302,26 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.shellyDevices">Shelly Geräte</h2>
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
-        <input name="webShellyHeatIP" id="shellyIP" style="width: 300px;" type="text" value="%SHELLYHEATERIP%">
+        <div class="twoinone-label">
+          <input name="webShellyHeatIP" id="shellyIP" style="width: 300px;" type="text" value="%SHELLYHEATERIP%">
+          <select name="webShellyHeaterHostKind" style="width: 80px; id="shellyHeaterHostKind">
+            <option value="1" %SHELLYHEATERHOSTKIND_IPV4%>Gen1</option>
+            <option value="2" %SHELLYHEATERHOSTKIND_IPV6%>Gen2</option>
+            <option value="3" %SHELLYHEATERHOSTKIND_DNS%>Gen3</option>
+          </select>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
-        <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 300px;" type="text" value="%SHELLYHUMIDIFIERIP%">
+        <div class="twoinone-label">
+          <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 300px;" type="text" value="%SHELLYHUMIDIFIERIP%">
+          <select name="webShellyHumidifierHostKind" style="width: 80px; id="shellyHumidifierHostKind">
+            <option value="1" %SHELLYHUMIDIFIERHOSTKIND_IPV4%>Gen1</option>
+            <option value="2" %SHELLYHUMIDIFIERHOSTKIND_IPV6%>Gen2</option>
+            <option value="3" %SHELLYHUMIDIFIERHOSTKIND_DNS%>Gen3</option>
+          </select>
+        </div>
       </div>
 
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
