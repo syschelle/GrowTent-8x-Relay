@@ -14,13 +14,26 @@ const char* KEY_APPASSWORD = "12345678";
 String ssidName = "";
 String ssidPassword = "";
 
+struct ShellyValues {
+  bool ok = false;
+  bool isOn = false;
+
+  float powerW   = NAN;
+  float voltageV = NAN;
+  float currentA = NAN;
+  float energyWh = NAN;
+};
+
 // Shelly device configuration
+//No TLS support
 //ShellyDevice plugGen1_ipv4 { ShellyGen::Gen1,    "192.168.1.40", 80, 0 };
-//ShellyDevice plugPlus_dns  { ShellyGen::Gen2Plus,"shelly-plus-plug.local", 80, 0 };
-//ShellyDevice plugG3_ipv6   { ShellyGen::Gen2Plus,"2001:db8::1234", 80, 0 };
 enum class ShellyGen : uint8_t { Gen1 = 1, Gen2Plus = 2 };
 String shellyHeaterDevice;
+int shellyHeatKind;
+ShellyValues shHeater;
 String shellyHumidifierDevice;
+int shellyHumKind;
+ShellyValues shHumidifier;
 // optional Basic Auth:
 String shellyUser;
 String shellyPass;
@@ -41,16 +54,6 @@ struct ShellyDevice {
 
   String User = shellyUser;  // optional Basic Auth username
   String Pass = shellyPass;  // optional Basic Auth password
-};
-
-struct ShellyValues {
-  bool ok = false;
-  bool isOn = false;
-
-  float powerW   = NAN;
-  float voltageV = NAN;
-  float currentA = NAN;
-  float energyWh = NAN;
 };
 
 // Pushover notification settings
@@ -114,7 +117,9 @@ static const char* KEY_RELAY_START_8;
 static const char* KEY_RELAY_END_8;
 
 static const char* KEY_SHELLYHEATIP = "shellyHeatIP";
+static const char* KEY_SHELLYHEATKIND = "shellyHeatKind";
 static const char* KEY_SHELLYHUMIP = "shellyHumIP";
+static const char* KEY_SHELLYHUMKIND = "shellyHumKind";
 static const char* KEY_SHELLYUSERNAME = "shellyUser";
 static const char* KEY_SHELLYPASSWORD = "shellyPass";
 

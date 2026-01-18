@@ -20,11 +20,11 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
-
 // tasks
 #include <task_Check_Sensor.h>
 #include <task_Water_Pump_Off.h>
 #include <task_Watering.h>
+#include <task_CheckShellyStatus.h>
 
 Preferences preferences;
 WebServer server(80);
@@ -168,6 +168,16 @@ void setup() {
         logPrint("[TASK] Skipping task to read sensor data because sensor is not available.");
       }
 
+      xTaskCreatePinnedToCore(
+        taskShellyStatus,                       // Task function
+        "Handle watering based on schedule",    // Task name
+        4096,                                   // Stack size
+        NULL,                                   // Task input parameters
+        1,                                      // Task priority, be careful when changing this
+        NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
+        1                                       // Core to run the task on
+      );
+
     } else {
       // if not connected, start SoftAP mode
       logPrint("[WIFI] Failed to connect. Starting SoftAP mode...");
@@ -245,6 +255,11 @@ void setup() {
   server.begin();
   logPrint("[APP] Web server started");
 
+  // Initial Shelly device status fetch
+  shHeater = getShellyValues(shellyHeaterDevice, shellyHeatKind);
+  shHumidifier = getShellyValues(shellyHumidifierDevice, shellyHumKind);
+  
+  // Initial tank level reading
   readTankLevel();
 }
 

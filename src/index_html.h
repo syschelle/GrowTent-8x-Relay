@@ -99,7 +99,7 @@ const char* htmlPage = R"rawliteral(
       <div class="metrics-row">
         <div class="metric">
           <div class="twoinone-label">
-            <div class="metric-label" data-i18n="status.lastTemperature">Temperatur</div>
+            <div class="metric-label" data-i18n="status.temperature">Temperatur</div>
             <div class="metric-value">
               <span id="tempSpan">–</span><span class="unit">°C</span>
             </div>
@@ -126,7 +126,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="metric">
           <div class="twoinone-label">
-            <div class="metric-label" data-i18n="status.lasthumidity">rel. Feuchte</div>
+            <div class="metric-label" data-i18n="status.humidity">Luftfeuchte</div>
             <div class="metric-value">
               <span id="humSpan">–</span><span class="unit">%</span>
             </div>
@@ -282,13 +282,13 @@ const char* htmlPage = R"rawliteral(
     <div class="relay-row" id="relayRow">
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
-        <div class="relay-status" id="shellyHeaterStatus"></div>
+        <div id="shelly-heater-state" class="shelly-status  shelly-off"></div>
         <div class="info">%SHELLYHEATERIP%</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHeater()">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyHumidifier">
         <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
-        <div class="relay-status" id="shellyHumidifierStatus"></div>
+        <div id="shelly-humidifier-state" class="shelly-status  shelly-off"></div>
         <div class="info">%SHELLYHUMIDIFIERIP%</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHumidifier()">Toggle</button>
       </div>
@@ -303,11 +303,11 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
         <div class="twoinone-label">
-          <input name="webShellyHeatIP" id="shellyIP" style="width: 300px;" type="text" value="%SHELLYHEATERIP%">
-          <select name="webShellyHeaterHostKind" style="width: 80px; id="shellyHeaterHostKind">
-            <option value="1" %SHELLYHEATERHOSTKIND_IPV4%>Gen1</option>
-            <option value="2" %SHELLYHEATERHOSTKIND_IPV6%>Gen2</option>
-            <option value="3" %SHELLYHEATERHOSTKIND_DNS%>Gen3</option>
+          <input name="webShellyHeatIP" id="shellyIP" style="width: 140px;" type="text" value="%SHELLYHEATERIP%">
+          <select name="webShHeatKind" style="width: 80px; id="shellyHeaterHostKind">
+            <option value="1" %SHHEATKIND1%>Gen1</option>
+            <option value="2" %SHHEATKIND2%>Gen2</option>
+            <option value="3" %SHHEATKIND3%>Gen3</option>
           </select>
         </div>
       </div>
@@ -315,11 +315,11 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
-          <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 300px;" type="text" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShellyHumidifierHostKind" style="width: 80px; id="shellyHumidifierHostKind">
-            <option value="1" %SHELLYHUMIDIFIERHOSTKIND_IPV4%>Gen1</option>
-            <option value="2" %SHELLYHUMIDIFIERHOSTKIND_IPV6%>Gen2</option>
-            <option value="3" %SHELLYHUMIDIFIERHOSTKIND_DNS%>Gen3</option>
+          <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 140px;" type="text" value="%SHELLYHUMIDIFIERIP%">
+          <select name="webShHumKind" style="width: 80px; id="shellyHumidifierHostKind">
+            <option value="1" %SHHUMIDKIND1%>Gen1</option>
+            <option value="2" %SHHUMIDKIND2%>Gen2</option>
+            <option value="3" %SHHUMIDKIND3%>Gen3</option>
           </select>
         </div>
       </div>

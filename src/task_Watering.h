@@ -20,14 +20,14 @@ void taskWatering(void *parameter){
         setRelay(7, true);
         delay(secondsToMilliseconds(timePerTask)); // Pump on for 10 seconds
         setRelay(7, false);
-        if (irrigationRuns == 1) {
+        irrigationRuns = irrigationRuns - 1;
+        if (irrigationRuns == 0) {
           if (language == "de") {
             sendPushover("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
           } else {
             sendPushover("Irrigation completed.", "Irrigation completed.");
           }
         }
-        irrigationRuns = irrigationRuns - 1;
     }
 
     // delay between checks

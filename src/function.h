@@ -10,6 +10,8 @@
 #include <WiFiClientSecure.h>
 #include <IPAddress.h>
 #include <HTTPClient.h>
+#include <base64.h>
+#include <mbedtls/md.h>
 
 // Include platform-specific headers for inet_ntoa
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
@@ -213,7 +215,45 @@ void handleRoot() {
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
     html.replace("%SHELLYHEATERIP%", shellyHeaterDevice);
+
+    if (shellyHeatKind == 1) {
+      html.replace("%SHHEATKIND1%", "selected");
+      html.replace("%SHHEATKIND2%", "");
+      html.replace("%SHHEATKIND3%", "");
+    } else if (shellyHeatKind == 2) {
+      html.replace("%SHHEATKIND1%", "");
+      html.replace("%SHHEATKIND2%", "selected");
+      html.replace("%SHHEATKIND3%", "");
+    } else if (shellyHeatKind == 3) {
+      html.replace("%SHHEATKIND1%", "");
+      html.replace("%SHHEATKIND2%", "");
+      html.replace("%SHHEATKIND3%", "selected");
+    } else {
+      html.replace("%SHHEATKIND1%", "");
+      html.replace("%SHHEATKIND2%", "");
+      html.replace("%SHHEATKIND3%", "");
+    }
+
     html.replace("%SHELLYHUMIDIFIERIP%", shellyHumidifierDevice);
+
+    if (shellyHumKind == 1) {
+      html.replace("%SHHUMIDKIND1%", "selected");
+      html.replace("%SHHUMIDKIND2%", "");
+      html.replace("%SHHUMIDKIND3%", "");
+    } else if (shellyHumKind == 2) {
+      html.replace("%SHHUMIDKIND1%", "");
+      html.replace("%SHHUMIDKIND2%", "selected");
+      html.replace("%SHHUMIDKIND3%", "");
+    } else if (shellyHumKind == 3) {
+      html.replace("%SHHUMIDKIND1%", "");
+      html.replace("%SHHUMIDKIND2%", "");
+      html.replace("%SHHUMIDKIND3%", "selected");
+    } else {
+      html.replace("%SHHUMIDKIND1%", "");
+      html.replace("%SHHUMIDKIND2%", "");
+      html.replace("%SHHUMIDKIND3%", "");
+    }
+
     html.replace("%SHELLYUSERNAME%", shellyUser);
     html.replace("%SHELLYPASSWORD%", shellyPass);
 
@@ -284,7 +324,9 @@ void readPreferences() {
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
 
   shellyHeaterDevice = preferences.isKey(KEY_SHELLYHEATIP) ? preferences.getString(KEY_SHELLYHEATIP) : String("");
+  shellyHeatKind = preferences.isKey(KEY_SHELLYHEATKIND) ? preferences.getInt(KEY_SHELLYHEATKIND) : 0;
   shellyHumidifierDevice = preferences.isKey(KEY_SHELLYHUMIP) ? preferences.getString(KEY_SHELLYHUMIP) : String("");
+  shellyHumKind = preferences.isKey(KEY_SHELLYHUMKIND) ? preferences.getInt(KEY_SHELLYHUMKIND) : 0;
   shellyUser = preferences.isKey(KEY_SHELLYUSERNAME) ? preferences.getString(KEY_SHELLYUSERNAME) : String("");
   shellyPass = preferences.isKey(KEY_SHELLYPASSWORD) ? preferences.getString(KEY_SHELLYPASSWORD) : String("");
 
@@ -315,6 +357,7 @@ void readPreferences() {
            " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo + "curentPhase:" + String(curPhase) +
            " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
            " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature +
+           " Shelly Heater Kind: " + String(shellyHeatKind)  + " Shelly Humidifier Kind: " + String(shellyHumKind) + 
            " targetVPD:" + targetVPD + " curPhase:" + String(curPhase) + " Relayname1:" + relayNames[0] + 
            " Relayname2:" + relayNames[1] + " Relayname3:" + relayNames[2] + " Relayname4:" + relayNames[3] +
            " AmountOfWater:" + String(amountOfWater) + " Irrigation:" + String(irrigation));
@@ -446,11 +489,23 @@ void handleSaveShellySettings() {
     logPrint("[PREFERENCES] " + String(KEY_SHELLYHEATIP) + " written bytes: " + shellyHeaterDevice);
   }
 
+  if (server.hasArg("webShHeatKind")) {
+    shellyHeatKind = server.arg("webShHeatKind").toInt();
+    preferences.putInt(KEY_SHELLYHEATKIND, shellyHeatKind);
+    logPrint("[PREFERENCES] Shelly Heater Kind set to: " + String(shellyHeatKind));
+  }
+
   // Save Shelly Humidifier IP if provided
   if (server.hasArg("webShellyHumIP")) {
     shellyHumidifierDevice = server.arg("webShellyHumIP");
     preferences.putString(KEY_SHELLYHUMIP, shellyHumidifierDevice);
     logPrint("[PREFERENCES] " + String(KEY_SHELLYHUMIP) + " written bytes: " + shellyHumidifierDevice);
+  }
+
+  if (server.hasArg("webShHumKind")) {
+    shellyHumKind = server.arg("webShHumKind").toInt();
+    preferences.putInt(KEY_SHELLYHUMKIND, shellyHumKind);
+    logPrint("[PREFERENCES] Shelly Humidifier Kind set to: " + String(shellyHumKind));
   }
 
   // Save Shelly Username if provided
@@ -1000,6 +1055,22 @@ String readSensorData() {
     if (i < NUM_RELAYS - 1) json += ",";
   }
   json += "],\n";
+  
+  if (!shHeater.ok) {
+    json += "\"shellyHeaterStatus\":nan,\n";
+  } else  if (shHeater.isOn) {
+    json += "\"shellyHeaterStatus\":true,\n";
+  } else {
+    json += "\"shellyHeaterStatus\":false,\n";
+  }
+
+  if (!shHumidifier.ok) {
+    json += "\"shellyHumidifierStatus\":nan,\n";
+  } else  if (shHumidifier.isOn) {
+    json += "\"shellyHumidifierStatus\":true,\n";
+  } else {
+    json += "\"shellyHumidifierStatus\":false,\n";
+  }
 
   // captured time
   json += "\"captured\":\"" + String(timeStr)  + "\"\n";
@@ -1343,132 +1414,385 @@ bool sendGotify(const String& msg, const String& title, int priority) {
   
 }
 
-// Helper: make base URL from ShellyDevice (with IPv6 handling)
-static String makeBaseUrl(const ShellyDevice& d) {
-  String h = d.host;
+// =======================
+// URL HELPERS
+// =======================
 
-  // Wenn es nach IPv6 aussieht (enthält ":"), und nicht schon [ ] hat → klammern
-  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
-    h = "[" + h + "]";
-  }
-
-  String url = "http://" + h;
-  if (d.port != 80) url += ":" + String(d.port);
-  return url;
+// Build base URL without credentials (safe for logging)
+static String makeBaseUrl(const String& host, uint16_t port) {
+  String u = "http://" + host;
+  if (port != 80) u += ":" + String(port);
+  return u;
 }
 
-// Helper: remove [ ] from host if present
-static String stripBrackets(String h) {
-  h.trim();
-  if (h.startsWith("[") && h.endsWith("]")) {
-    h = h.substring(1, h.length() - 1);
+// =======================
+// HASH HELPERS (Digest)
+// =======================
+
+// Compute hash (MD5/SHA-256) and return lowercase hex
+static String hashHex(mbedtls_md_type_t mdType, const String& s) {
+  const mbedtls_md_info_t* info = mbedtls_md_info_from_type(mdType);
+  if (!info) return "";
+
+  unsigned char out[64];
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, info, 0);
+  mbedtls_md_starts(&ctx);
+  mbedtls_md_update(&ctx, (const unsigned char*)s.c_str(), s.length());
+  mbedtls_md_finish(&ctx, out);
+  mbedtls_md_free(&ctx);
+
+  const size_t outLen = mbedtls_md_get_size(info);
+  static const char* hex = "0123456789abcdef";
+  String res;
+  res.reserve(outLen * 2);
+  for (size_t i = 0; i < outLen; i++) {
+    res += hex[(out[i] >> 4) & 0xF];
+    res += hex[out[i] & 0xF];
   }
+  return res;
+}
+
+static String toLowerCopy(String s) { s.toLowerCase(); return s; }
+
+// Extract parameter value from Digest header, supports:
+// key="value"  OR  key=value
+static String digestParam(const String& header, const String& key) {
+  String h = header;
+  h.trim();
+  String hl = toLowerCopy(h);
+
+  String kl = key;
+  kl.trim();
+  kl.toLowerCase();
+
+  int p = hl.indexOf(kl + "=");
+  if (p < 0) return "";
+
+  p += kl.length() + 1; // skip "key="
+  if (p >= h.length()) return "";
+
+  // quoted value
+  if (h[p] == '"') {
+    p++;
+    int e = h.indexOf('"', p);
+    if (e < 0) return "";
+    return h.substring(p, e);
+  }
+
+  // unquoted value until comma
+  int e = h.indexOf(',', p);
+  if (e < 0) e = h.length();
+  String v = h.substring(p, e);
+  v.trim();
+  return v;
+}
+
+static String makeCnonce() {
+  // Simple pseudo-random cnonce, good enough for LAN usage
+  uint32_t r1 = (uint32_t)esp_random();
+  uint32_t r2 = (uint32_t)esp_random();
+  char buf[17];
+  snprintf(buf, sizeof(buf), "%08lx%08lx", (unsigned long)r1, (unsigned long)r2);
+  return String(buf);
+}
+
+// Build Digest Authorization header for RFC7616 (SHA-256) and MD5 (fallback)
+// Supports "-sess" variants as well.
+static String buildDigestAuth(const String& wwwAuth,
+                              const String& user,
+                              const String& pass,
+                              const String& method,
+                              const String& uri) {
+  String realm  = digestParam(wwwAuth, "realm");
+  String nonce  = digestParam(wwwAuth, "nonce");
+  String qop    = digestParam(wwwAuth, "qop");
+  String opaque = digestParam(wwwAuth, "opaque");
+  String alg    = digestParam(wwwAuth, "algorithm"); // e.g. SHA-256, SHA-256-sess, MD5
+
+  if (realm.length() == 0 || nonce.length() == 0) return "";
+
+  bool sess = false;
+  String algLower = toLowerCopy(alg);
+  if (algLower.endsWith("-sess")) {
+    sess = true;
+    algLower.replace("-sess", "");
+  }
+
+  mbedtls_md_type_t mdType = MBEDTLS_MD_MD5;
+  if (algLower == "sha-256") mdType = MBEDTLS_MD_SHA256;
+  else if (algLower == "md5" || algLower.length() == 0) mdType = MBEDTLS_MD_MD5;
+
+  // Prefer qop=auth if offered
+  String qopUse = (toLowerCopy(qop).indexOf("auth") >= 0) ? "auth" : "";
+
+  String nc = "00000001";
+  String cnonce = makeCnonce();
+
+  // HA1 = H(user:realm:pass)
+  String ha1 = hashHex(mdType, user + ":" + realm + ":" + pass);
+  // HA1-sess = H(HA1:nonce:cnonce)
+  if (sess) {
+    ha1 = hashHex(mdType, ha1 + ":" + nonce + ":" + cnonce);
+  }
+
+  // HA2 = H(method:uri)
+  String ha2 = hashHex(mdType, method + ":" + uri);
+
+  // response
+  String resp;
+  if (qopUse.length()) {
+    resp = hashHex(mdType, ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":" + qopUse + ":" + ha2);
+  } else {
+    resp = hashHex(mdType, ha1 + ":" + nonce + ":" + ha2);
+  }
+
+  // Build header line
+  String h = "Authorization: Digest ";
+  h += "username=\"" + user + "\", ";
+  h += "realm=\"" + realm + "\", ";
+  h += "nonce=\"" + nonce + "\", ";
+  h += "uri=\"" + uri + "\", ";
+  if (alg.length()) h += "algorithm=" + alg + ", ";
+
+  if (qopUse.length()) {
+    h += "response=\"" + resp + "\", ";
+    h += "qop=" + qopUse + ", ";
+    h += "nc=" + nc + ", ";
+    h += "cnonce=\"" + cnonce + "\", ";
+  } else {
+    h += "response=\"" + resp + "\", ";
+  }
+
+  if (opaque.length()) h += "opaque=\"" + opaque + "\", ";
+
+  if (h.endsWith(", ")) h.remove(h.length() - 2);
+  h += "\r\n";
   return h;
 }
 
-// Detect host type: "IPv4", "IPv6", "DNS"
-String detectHostType(const String& hostInput) {
-  String h = hostInput;
-  h.trim();
+// =======================
+// HTTP HELPERS
+// =======================
 
-  // [IPv6] → IPv6
-  if (h.startsWith("[") && h.endsWith("]")) {
-    h = h.substring(1, h.length() - 1);
-  }
+// Fetch WWW-Authenticate header using HTTPClient (no auth).
+// This is used to discover whether the device requires Digest or Basic.
+static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& outCode) {
+  outWwwAuth = "";
+  outCode = -1;
 
-  // IPv4?
-  IPAddress ip4;
-  if (ip4.fromString(h)) {
-    return "IPv4";
-  }
-
-  // IPv6? Heuristic: IPv6 literals contain multiple ':' characters (portable fallback)
-  int colonCount = 0;
-  for (unsigned int i = 0; i < h.length(); ++i) {
-    if (h.charAt(i) == ':') ++colonCount;
-  }
-  if (colonCount >= 2) {
-    return "IPv6";
-  }
-
-  // sonst: DNS / Hostname
-  return "DNS";
-}
-
-// HTTP GET JSON from Shelly device
-static bool httpGetJson(const ShellyDevice& d, const String& path, JsonDocument& doc) {
   HTTPClient http;
-  const String url = makeBaseUrl(d) + path;
+  http.setTimeout(4000);
+  http.useHTTP10(true);
 
-  http.begin(url);
-  if (d.User.length()) http.setAuthorization(d.User.c_str(), d.Pass.c_str());
+  const char* keys[] = {"WWW-Authenticate"};
+  http.collectHeaders(keys, 1);
+
+  if (!http.begin(url)) return false;
 
   int code = http.GET();
-  if (code <= 0) { http.end(); return false; }
+  outCode = code;
 
-  String body = http.getString();
-  http.end();
-
-  return deserializeJson(doc, body) == DeserializationError::Ok;
-}
-
-// Get values from Shelly device
-ShellyValues getShellyValues(
-  const String& host,     // IPv4 / IPv6 / DNS
-  uint8_t gen,            // 1 = Gen1, 2 = Gen2/Gen3
-  uint8_t switchId = 0,
-  uint16_t port = 80,
-  const String& user = "",
-  const String& pass = ""
-) {
-  ShellyValues v;
-
-  // --- Host normalisieren (IPv6 → [ ])
-  String h = host;
-  h.trim();
-  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
-    h = "[" + h + "]";
+  if (code == 401) {
+    outWwwAuth = http.header("WWW-Authenticate");
   }
 
-  String baseUrl = "http://" + h;
-  if (port != 80) baseUrl += ":" + String(port);
+  http.end();
+  return true;
+}
 
-  HTTPClient http;
-  String url;
+// Read the complete HTTP response (status line + headers + body)
+static bool readAllFromClient(WiFiClient& client, String& outRaw) {
+  outRaw = "";
+  unsigned long start = millis();
 
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  DynamicJsonDocument doc(2048);
-  #pragma GCC diagnostic pop
+  // Wait for first bytes (up to 2s)
+  while (!client.available() && client.connected() && (millis() - start) < 2000) {
+    delay(5);
+  }
 
-  // --- Gen1
+  // Read until connection closes or timeout (4s max)
+  start = millis();
+  while ((client.connected() || client.available()) && (millis() - start) < 4000) {
+    while (client.available()) {
+      outRaw += client.readString();
+      start = millis(); // reset timeout while data arrives
+    }
+    delay(5);
+  }
+
+  return outRaw.length() > 0;
+}
+
+// Parse HTTP status code and body from a raw response string
+static bool parseHttpResponse(const String& raw, int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  int sep = raw.indexOf("\r\n\r\n");
+  if (sep < 0) sep = raw.indexOf("\n\n");
+  if (sep < 0) {
+    // No headers found, treat everything as body
+    outBody = raw;
+    return true;
+  }
+
+  String head = raw.substring(0, sep);
+  outBody = raw.substring(sep + ((raw[sep] == '\r') ? 4 : 2));
+
+  // Status line is first header line
+  int lineEnd = head.indexOf("\r\n");
+  if (lineEnd < 0) lineEnd = head.indexOf('\n');
+  String statusLine = (lineEnd >= 0) ? head.substring(0, lineEnd) : head;
+  statusLine.trim();
+
+  int sp1 = statusLine.indexOf(' ');
+  int sp2 = statusLine.indexOf(' ', sp1 + 1);
+  if (sp1 > 0 && sp2 > sp1) {
+    outCode = statusLine.substring(sp1 + 1, sp2).toInt();
+  }
+
+  return true;
+}
+
+// Low-level GET using WiFiClient, with optional Authorization header line.
+static bool rawHttpGet(const String& host, uint16_t port, const String& path,
+                       const String& authHeaderLine,
+                       int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  WiFiClient client;
+  client.setTimeout(4); // seconds
+
+  if (!client.connect(host.c_str(), port)) {
+    return false;
+  }
+
+  String p = path;
+  if (!p.startsWith("/")) p = "/" + p;
+
+  // Use HTTP/1.0 to avoid chunked transfer encoding
+  String req =
+    "GET " + p + " HTTP/1.0\r\n"
+    "Host: " + host + "\r\n" +
+    authHeaderLine +
+    "Connection: close\r\n\r\n";
+
+  client.print(req);
+
+  String raw;
+  bool ok = readAllFromClient(client, raw);
+  client.stop();
+  if (!ok) return false;
+
+  parseHttpResponse(raw, outCode, outBody);
+  return true;
+}
+
+// Auto-auth GET: first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
+static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const String& path,
+                                      const String& user, const String& pass,
+                                      int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  // Discover auth scheme (no credentials sent here)
+  String url = makeBaseUrl(host, port) + path;
+  String www;
+  int firstCode = -1;
+
+  if (!fetchWwwAuthenticate(url, www, firstCode)) {
+    return false;
+  }
+
+  // If endpoint is open (200), just request without auth
+  if (firstCode == 200) {
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  // If unauthorized, decide scheme
+  if (firstCode != 401) {
+    // Unexpected (404, 500, etc.). Still try without auth to get body.
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  String wwwLower = toLowerCopy(www);
+
+  if (wwwLower.startsWith("digest")) {
+    // Build Digest Authorization header
+    String digestLine = buildDigestAuth(www, user, pass, "GET", path);
+    if (digestLine.length() == 0) return false;
+    return rawHttpGet(host, port, path, digestLine, outCode, outBody);
+  }
+
+  // Basic auth (rare with Shelly Gen2/3 but supported sometimes)
+  if (wwwLower.startsWith("basic")) {
+    // We'll avoid putting credentials in logs; we only build the header
+    // NOTE: If you need Basic, you can implement base64 header here.
+    // Many Shelly Gen2/3 use Digest, so this branch is typically not needed.
+    return false;
+  }
+
+  return false;
+}
+
+// =======================
+// MAIN: GET VALUES
+// =======================
+ShellyValues getShellyValues(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
+  ShellyValues v;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    logPrint("[SHELLY] WiFi not connected");
+    return v;
+  }
+
+  // Decide path for Gen1 vs Gen2/3
+  String path = (gen == 1)
+    ? "/status"
+    : ("/rpc/Switch.GetStatus?id=" + String(switchId));
+
+  logPrint("[SHELLY] GET " + host + ":" + String(port) + " " + path);
+
+  int code = -1;
+  String body;
+
+  // Gen1 often uses Basic or simple auth; Gen2/3 typically uses Digest
+  bool ok = httpGetWithDigestAutoAuth(host, port, path, shellyUser, shellyPass, code, body);
+  if (!ok) {
+    logPrint("[SHELLY] request failed");
+    return v;
+  }
+
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
+
+  if (code != 200 || body.length() == 0) {
+    logPrint("[SHELLY] Invalid response");
+    return v;
+  }
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()));
+    logPrint("[SHELLY] Body (first 200): " + body.substring(0, 200));
+    return v;
+  }
+
+  logPrint("[SHELLY] output=" + String((bool)(doc["output"] | false)));
+  logPrint("[SHELLY] apower=" + String((float)(doc["apower"] | NAN)));
+  logPrint("[SHELLY] voltage=" + String((float)(doc["voltage"] | NAN)));
+  logPrint("[SHELLY] current=" + String((float)(doc["current"] | NAN)));
+  logPrint("[SHELLY] aenergy.total=" + String((float)(doc["aenergy"]["total"] | NAN)));
+
+  // Parse values
   if (gen == 1) {
-    url = baseUrl + "/status";
-    http.begin(url);
-    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
-
-    if (http.GET() <= 0) { http.end(); return v; }
-
-    String body = http.getString();
-    http.end();
-    if (deserializeJson(doc, body)) return v;
-
     v.isOn     = doc["relays"][switchId]["ison"] | false;
     v.powerW   = doc["meters"][switchId]["power"] | NAN;
     v.energyWh = doc["meters"][switchId]["total"] | NAN;
-  }
-  // --- Gen2 / Gen3
-  else {
-    url = baseUrl + "/rpc/Switch.GetStatus?id=" + String(switchId);
-    http.begin(url);
-    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
-
-    if (http.GET() <= 0) { http.end(); return v; }
-
-    String body = http.getString();
-    http.end();
-    if (deserializeJson(doc, body)) return v;
-
+  } else {
     v.isOn     = doc["output"] | false;
     v.powerW   = doc["apower"] | NAN;
     v.voltageV = doc["voltage"] | NAN;
@@ -1478,4 +1802,35 @@ ShellyValues getShellyValues(
 
   v.ok = true;
   return v;
+}
+
+// =======================
+// Uses the same Digest auto-auth mechanism.
+// =======================
+static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t switchId = 0, uint16_t port = 80) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  String path;
+  if (gen == 1) {
+    path = "/relay/" + String(switchId) + "?turn=" + String(on ? "on" : "off");
+  } else {
+    path = "/rpc/Switch.Set?id=" + String(switchId) + "&on=" + String(on ? "true" : "false");
+  }
+
+  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path);
+
+  int code = -1;
+  String body;
+
+  bool ok = httpGetWithDigestAutoAuth(host, port, path, shellyUser, shellyPass, code, body);
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
+  return ok && (code == 200);
+}
+
+static bool shellySwitchOn(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
+  return shellySwitchSet(host, gen, true, switchId, port);
+}
+
+static bool shellySwitchOff(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
+  return shellySwitchSet(host, gen, false, switchId, port);
 }

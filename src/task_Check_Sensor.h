@@ -19,7 +19,6 @@ void taskCheckBMESensor(void *parameter){
       
       tankLevelCm = pingTankLevel(TRIG, ECHO);
     }
-
     // Read sensor temperatur, humidity and vpd
     readSensorData();
     // delay  10 seconds

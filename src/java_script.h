@@ -41,16 +41,16 @@ const char* jsContent = R"rawliteral(
     "status.download": "History herunterladen",
     "status.delete": "History löschen",
     "status.currentValues": "Aktuelle Werte",
-    "status.lastTemperature": "akt. Temperatur",
+    "status.temperature": "Temperatur",
     "status.targetTemp": "Soll-Temperatur",
     "status.last": "akt. ",
-    "status.lasthumidity": "akt. Luftfeuchte",
+    "status.humidity": "Luftfeuchte",
     "status.lastvpd": "akt. VPD",
     "status.targetVpd": "Soll-VPD:",
     "status.averagesLastHour": "Durchschnittswerte der letzten Stunde",
     "status.avgTemperature": "Ø Temperatur",
     "status.avg": "Ø ",
-    "status.avgHumidity": "Ø rel. Feuchte",
+    "status.avgHumidity": "Ø Luftfeuchte",
     "status.avgVpd": "Ø VPD",
     "status.relayControl": "Relais Steuerung",
     "status.toggleRelay": "umschalten",
@@ -169,10 +169,10 @@ const char* jsContent = R"rawliteral(
     "status.download": "Download History",
     "status.delete": "Delete History",
     "status.currentValues": "current Values",
-    "status.lastTemperature": "current Temperature",
+    "status.temperature": "Temperature",
     "status.targetTemp": "target Temperature",
     "status.lastWaterTemperature": "current Water Temperature",
-    "status.lasthumidity": "current Humidity",
+    "status.humidity": "Humidity",
     "status.lastvpd": "current VPD",
     "status.targetVpd": "target VPD",
     "status.toggleRelay": "toggle",
@@ -202,10 +202,9 @@ const char* jsContent = R"rawliteral(
     "shelly.shellyAuthUser": "Username: (optional)",
     "shelly.shellyAuthPassword": "Password: (optional)",
     "status.averagesLastHour": "Averages last hour",
-    "status.avgTemperature": "avg. Temperature",
-    "status.avgWaterTemperature": "avg. Water Temperature",
-    "status.avgHumidity": "avg. Humidity",
-    "status.avgVpd": "avg. VPD",
+    "status.avgWaterTemperature": "Ø",
+    "status.avgHumidity": "Ø Humidity",
+    "status.avgVpd": "Ø VPD",
     "status.relayControl": "Relay Control",
     "status.toggleRelay": "toggle",
     "status.relayIrrigation": "Irrigation Control",
@@ -381,6 +380,14 @@ function pingTank() {
       console.error('ping tank failed:', err);
     });
 };
+
+// ---------- Shelly status update ----------
+function setShellyStateClass(el, isOn) {
+  if (!el) return;
+
+  el.classList.remove('shelly-on', 'shelly-off');
+  el.classList.add(isOn ? 'shelly-on' : 'shelly-off');
+}
 
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
@@ -591,6 +598,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (isNum(data.curIrrigationRuns))     { setText('irrigationSpan', data.curIrrigationRuns.toFixed(0)); }
       if (isNum(data.curTankLevel))          { setText('tankLevelSpan', data.curTankLevel.toFixed(0)); }
       if (isNum(data.curTankLevelDistance))  { setText('tankCMDistanceSpan', data.curTankLevelDistance.toFixed(0)); }
+      if (isText(data.curTankLevelStatus)) { setText('tankLevelStatusSpan', data.curTankLevelStatus); }
       
       const isText = x => typeof x === 'string' && x.trim() !== '';
 
@@ -598,6 +606,22 @@ window.addEventListener('DOMContentLoaded', () => {
         setText('irTimeLeftSpan', data.curTimeLeftIrrigation);
       } else {
         setText('irTimeLeftSpan', '00:00');
+      }
+
+      // ---------- Heater ----------
+      const heaterStateEl = document.getElementById('shelly-heater-state');
+      if (heaterStateEl && typeof data.shellyHeaterStatus === 'boolean') {
+        const isOn = data.shellyHeaterStatus;
+        heaterStateEl.textContent = isOn ? 'ON' : 'OFF';
+        setShellyStateClass(heaterStateEl, isOn);
+      }
+
+      // ---------- Humidifier ----------
+      const humidifierStateEl = document.getElementById('shelly-humidifier-state');
+      if (humidifierStateEl && typeof data.shellyHumidifierStatus === 'boolean') {
+        const isOn = data.shellyHumidifierStatus;
+        humidifierStateEl.textContent = isOn ? 'ON' : 'OFF';
+        setShellyStateClass(humidifierStateEl, isOn);
       }
 
       // averages (support both naming styles from backend)

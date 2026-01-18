@@ -341,6 +341,25 @@ const char* cssContent = R"rawliteral(
       gap: 4px;
     }
 
+    .shelly-status {
+      font-size: 1.1rem;
+      height: 36px;
+      display: flex;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .shelly-on {
+      background-color: #28a745;
+    }
+
+    .shelly-off {
+      background-color: #dc3545;
+    }
+
     .inline-checkbox {
       display: inline-flex;
       gap: 8px;
