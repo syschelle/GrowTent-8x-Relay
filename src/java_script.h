@@ -274,8 +274,27 @@ const char* jsContent = R"rawliteral(
   });
 })();
 
+// ---------- Sensor polling ----------
+window.sensorTimer = null;
+
 // ---- relay state (4 relays) ----
 let relayStates = [false, false, false, false];
+
+// Funktion zum Aktualisieren der Sensorwerte
+window._stopSensorPoll = function () {
+  if (window.sensorTimer) {
+    clearInterval(window.sensorTimer);
+    window.sensorTimer = null;
+    console.log('[SHELLY][JS] Sensor polling stopped');
+  }
+};
+
+window._startSensorPoll = function () {
+  if (!window.sensorTimer && typeof window.updateSensorValues === 'function') {
+    window.sensorTimer = setInterval(window.updateSensorValues, 10000);
+    console.log('[SHELLY][JS] Sensor polling started');
+  }
+};
 
 // Aktualisiert die Relay-Buttons im UI
 window.updateRelayButtons = function() {
@@ -390,19 +409,22 @@ function setShellyStateClass(el, isOn) {
 }
 
 window.toggleShellyRelay = async function(device) {
-  let url;
+  const url = (device === 'heater')
+    ? '/shelly/heater/toggle'
+    : (device === 'humidifier')
+      ? '/shelly/humidifier/toggle'
+      : null;
 
-  if (device === 'heater') {
-    url = '/shelly/heater/toggle';
-  } else if (device === 'humidifier') {
-    url = '/shelly/humidifier/toggle';
-  } else {
+  if (!url) {
     console.error('[SHELLY][JS] Unknown device:', device);
     return;
   }
 
+  // stop polling while toggling
+  window._stopSensorPoll?.();
+
   try {
-    const res = await fetch(url, { method: 'POST' });
+    const res = await fetch(url, { method: 'POST', cache: 'no-store' });
 
     if (!res.ok) {
       console.error('[SHELLY][JS] Toggle failed:', res.status);
@@ -411,15 +433,15 @@ window.toggleShellyRelay = async function(device) {
 
     console.log('[SHELLY][JS] Toggle OK:', device);
 
-    // Refresh status shortly after toggle (only if available)
+    // refresh once AFTER toggle finished
     if (typeof window.updateSensorValues === 'function') {
-      setTimeout(window.updateSensorValues, 600);
-    } else {
-      console.warn('[SHELLY][JS] updateSensorValues not available on window');
+      setTimeout(() => window.updateSensorValues(), 1200);
     }
-
   } catch (err) {
     console.error('[SHELLY][JS] Toggle exception:', err);
+  } finally {
+    // restart polling after everything settled
+    setTimeout(() => window._startSensorPoll?.(), 2000);
   }
 };
 
@@ -725,9 +747,11 @@ window.addEventListener('DOMContentLoaded', () => {
     setText('capturedSpan', 'N/A');
     // averages optional
   }
-  // Poll every 10s and once immediately
-  setInterval(updateSensorValues, 10000);
-  updateSensorValues();
+  window.updateSensorValues = updateSensorValues;
+  window._startSensorPoll();     // intervall start
+  window.updateSensorValues();
+
+  window.updateSensorValues = updateSensorValues;
 
   // ---------- Relay helpers ----------
   function toggleRelay(nr) {

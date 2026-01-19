@@ -1056,37 +1056,43 @@ String readSensorData() {
   }
   json += "],\n";
   
+  // ---- Shelly Heater ----
   if (!shHeater.ok) {
-    json += "\"shellyHeaterStatus\":nan,\n";
-    json += "\"shellyHeaterPower\":nan,\n";
-    json += "\"shellyHeaterTotalWh\":nan,\n";
-  } else  if (shHeater.isOn) {
-    json += "\"shellyHeaterStatus\":true,\n";
-    json += "\"shellyHeaterPower\":" + String(shHeater.powerW) + ",\n";
-    json += "\"shellyHeaterTotalWh\":" + String(shHeater.energyWh) + ",\n";
-  } else {
     json += "\"shellyHeaterStatus\":false,\n";
-    json += "\"shellyHeaterPower\":" + String(shHeater.powerW) + ",\n";
-    json += "\"shellyHeaterTotalWh\":" + String(shHeater.energyWh) + ",\n";
+    json += "\"shellyHeaterPower\":null,\n";
+    json += "\"shellyHeaterTotalWh\":null,\n";
+  } else {
+    json += "\"shellyHeaterStatus\":" + String(shHeater.isOn ? "true" : "false") + ",\n";
+    // powerW can be NAN if parsing failed -> output null
+    if (!isnan(shHeater.powerW) && !isinf(shHeater.powerW)) {
+      json += "\"shellyHeaterPower\":" + String(shHeater.powerW, 2) + ",\n";
+    } else {
+      json += "\"shellyHeaterPower\":null,\n";
+    }
+    if (!isnan(shHeater.energyWh) && !isinf(shHeater.energyWh)) {
+      json += "\"shellyHeaterTotalWh\":" + String(shHeater.energyWh, 2) + ",\n";
+    } else {
+      json += "\"shellyHeaterTotalWh\":null,\n";
+    }
   }
 
   if (!shHumidifier.ok) {
-    json += "\"shellyHumidifierStatus\":nan,\n";
-    json += "\"shellyHumidifierPower\":nan,\n";
-    json += "\"shellyHumidifierTotalWh\":nan\n";
-  } else  if (shHumidifier.isOn) {
-    json += "\"shellyHumidifierStatus\":true,\n";
-    json += "\"shellyHumidifierPower\":" + String(shHumidifier.powerW) + ",\n";
-    json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh) + ",\n";
-  } else {
     json += "\"shellyHumidifierStatus\":false,\n";
-    json += "\"shellyHumidifierPower\":" + String(shHumidifier.powerW) + ",\n";
-    json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh) + ",\n";
+    json += "\"shellyHumidifierPower\":null,\n";
+    json += "\"shellyHumidifierTotalWh\":null,\n";
+  } else {
+    json += "\"shellyHumidifierStatus\":" + String(shHumidifier.isOn ? "true" : "false") + ",\n";
+    if (!isnan(shHumidifier.powerW) && !isinf(shHumidifier.powerW)) {
+      json += "\"shellyHumidifierPower\":" + String(shHumidifier.powerW, 2) + ",\n";
+    } else {
+      json += "\"shellyHumidifierPower\":null,\n";
+    }
+    if (!isnan(shHumidifier.energyWh) && !isinf(shHumidifier.energyWh)) {
+      json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh, 2) + ",\n";
+    } else {
+      json += "\"shellyHumidifierTotalWh\":null,\n";
+    }
   }
-
-  
-
-  
 
   // captured time
   json += "\"captured\":\"" + String(timeStr)  + "\"\n";

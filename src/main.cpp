@@ -226,13 +226,35 @@ void setup() {
   server.on("/relay/6/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(5); });
   server.on("/relay/7/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(6); });
   server.on("/relay/8/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(7); });
-  server.on("/shelly/heater/toggle", HTTP_POST, []() { shellySwitchOn(shellyHeaterDevice, shellyHeatKind, 0, 80); });
+  server.on("/shelly/heater/toggle", HTTP_POST, []() {
+    bool ok = false;
+    bool newState = false;
+
+    ShellyValues v = getShellyValues(shellyHeaterDevice, shellyHeatKind, 0, 80);
+    if (v.ok) {
+      newState = !v.isOn;
+      ok = shellySwitchSet(shellyHeaterDevice, shellyHeatKind, newState, 0, 80);
+    }
+
+    String resp = String("{\"ok\":") + (ok ? "true" : "false") +
+                  String(",\"isOn\":") + (newState ? "true" : "false") + "}";
+
+    server.send(ok ? 200 : 500, "application/json", resp);
+  });
   server.on("/shelly/humidifier/toggle", HTTP_POST, []() {
+    bool ok = false;
+    bool newState = false;
+
     ShellyValues v = getShellyValues(shellyHumidifierDevice, shellyHumKind, 0, 80);
     if (v.ok) {
-      shellySwitchSet(shellyHumidifierDevice, shellyHumKind, !v.isOn, 0, 80);
+      newState = !v.isOn;
+      ok = shellySwitchSet(shellyHumidifierDevice, shellyHumKind, newState, 0, 80);
     }
-    server.send(200, "application/json", "{\"ok\":true}");
+
+    String resp = String("{\"ok\":") + (ok ? "true" : "false") +
+                  String(",\"isOn\":") + (newState ? "true" : "false") + "}";
+
+    server.send(ok ? 200 : 500, "application/json", resp);
   });
   // route for factory reset
   server.on("/factory-reset", handleFactoryReset);
