@@ -282,15 +282,15 @@ const char* htmlPage = R"rawliteral(
     <div class="relay-row" id="relayRow">
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
-        <div id="shelly-heater-state" class="shelly-status  shelly-off"></div>
+        <div id="shelly-heater-state" class="shelly-status shelly-off"></div>
         <div class="info">%SHELLYHEATERIP%</div>
-        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHeater()">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('heater')">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyHumidifier">
         <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
-        <div id="shelly-humidifier-state" class="shelly-status  shelly-off"></div>
+        <div id="shelly-humidifier-state" class="shelly-status shelly-off"></div>
         <div class="info">%SHELLYHUMIDIFIERIP%</div>
-        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyHumidifier()">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('humidifier')">Toggle</button>
       </div>
     </div>
     </section>

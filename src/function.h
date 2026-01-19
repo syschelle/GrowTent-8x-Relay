@@ -1058,19 +1058,35 @@ String readSensorData() {
   
   if (!shHeater.ok) {
     json += "\"shellyHeaterStatus\":nan,\n";
+    json += "\"shellyHeaterPower\":nan,\n";
+    json += "\"shellyHeaterTotalWh\":nan,\n";
   } else  if (shHeater.isOn) {
     json += "\"shellyHeaterStatus\":true,\n";
+    json += "\"shellyHeaterPower\":" + String(shHeater.powerW) + ",\n";
+    json += "\"shellyHeaterTotalWh\":" + String(shHeater.energyWh) + ",\n";
   } else {
     json += "\"shellyHeaterStatus\":false,\n";
+    json += "\"shellyHeaterPower\":" + String(shHeater.powerW) + ",\n";
+    json += "\"shellyHeaterTotalWh\":" + String(shHeater.energyWh) + ",\n";
   }
 
   if (!shHumidifier.ok) {
     json += "\"shellyHumidifierStatus\":nan,\n";
+    json += "\"shellyHumidifierPower\":nan,\n";
+    json += "\"shellyHumidifierTotalWh\":nan\n";
   } else  if (shHumidifier.isOn) {
     json += "\"shellyHumidifierStatus\":true,\n";
+    json += "\"shellyHumidifierPower\":" + String(shHumidifier.powerW) + ",\n";
+    json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh) + ",\n";
   } else {
     json += "\"shellyHumidifierStatus\":false,\n";
+    json += "\"shellyHumidifierPower\":" + String(shHumidifier.powerW) + ",\n";
+    json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh) + ",\n";
   }
+
+  
+
+  
 
   // captured time
   json += "\"captured\":\"" + String(timeStr)  + "\"\n";

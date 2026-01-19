@@ -302,7 +302,8 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-status {
-      font-size: 1.1rem;
+      font-size: 0.85rem;     /* kleiner als Standard */
+      font-weight: 700; 
       height: 36px;
       display: flex;
       padding: 0.2rem 0.6rem;
@@ -342,14 +343,24 @@ const char* cssContent = R"rawliteral(
     }
 
     .shelly-status {
-      font-size: 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
       height: 36px;
       display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
       padding: 0.2rem 0.6rem;
       border-radius: 6px;
       min-width: 60px;
       text-align: center;
       transition: all 0.2s ease;
+    }
+
+    .shelly-status .sub {
+      font-size: 0.70rem;
+      font-weight: 600;
+      opacity: 0.95;
     }
 
     .shelly-on {

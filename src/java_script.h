@@ -389,6 +389,37 @@ function setShellyStateClass(el, isOn) {
   el.classList.add(isOn ? 'shelly-on' : 'shelly-off');
 }
 
+// ---------- Shelly relay toggle ----------
+async function toggleShellyRelay(device) {
+  let url;
+
+  if (device === 'heater') {
+    url = '/shelly/heater/toggle';
+  } else if (device === 'humidifier') {
+    url = '/shelly/humidifier/toggle';
+  } else {
+    console.error('[SHELLY][JS] Unknown device:', device);
+    return;
+  }
+
+  try {
+    const res = await fetch(url, { method: 'POST' });
+
+    if (!res.ok) {
+      console.error('[SHELLY][JS] Toggle failed:', res.status);
+      return;
+    }
+
+    console.log('[SHELLY][JS] Toggle OK:', device);
+
+    // Optional: refresh status shortly after toggle
+    setTimeout(updateSensorValues, 600);
+
+  } catch (err) {
+    console.error('[SHELLY][JS] Toggle exception:', err);
+  }
+}
+
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
 
@@ -598,7 +629,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (isNum(data.curIrrigationRuns))     { setText('irrigationSpan', data.curIrrigationRuns.toFixed(0)); }
       if (isNum(data.curTankLevel))          { setText('tankLevelSpan', data.curTankLevel.toFixed(0)); }
       if (isNum(data.curTankLevelDistance))  { setText('tankCMDistanceSpan', data.curTankLevelDistance.toFixed(0)); }
-      if (isText(data.curTankLevelStatus)) { setText('tankLevelStatusSpan', data.curTankLevelStatus); }
+      //if (isText(data.curTankLevelStatus)) { setText('tankLevelStatusSpan', data.curTankLevelStatus); }
       
       const isText = x => typeof x === 'string' && x.trim() !== '';
 
@@ -610,20 +641,45 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // ---------- Heater ----------
       const heaterStateEl = document.getElementById('shelly-heater-state');
-      if (heaterStateEl && typeof data.shellyHeaterStatus === 'boolean') {
-        const isOn = data.shellyHeaterStatus;
-        heaterStateEl.textContent = isOn ? 'ON' : 'OFF';
+      if (heaterStateEl) {
+        const rawStatus = data.shellyHeaterStatus;
+        const rawPower  = data.shellyHeaterPower;
+        const rawTotalWh = data.shellyHeaterTotalWh;
+
+        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
+        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
+        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
+        const totalKWh = totalWh / 1000;
+
         setShellyStateClass(heaterStateEl, isOn);
+
+        heaterStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
       }
 
       // ---------- Humidifier ----------
       const humidifierStateEl = document.getElementById('shelly-humidifier-state');
-      if (humidifierStateEl && typeof data.shellyHumidifierStatus === 'boolean') {
-        const isOn = data.shellyHumidifierStatus;
-        humidifierStateEl.textContent = isOn ? 'ON' : 'OFF';
+      if (humidifierStateEl) {
+        const rawStatus = data.shellyHumidifierStatus;
+        const rawPower  = data.shellyHumidifierPower;
+        const rawTotalWh = data.shellyHumidifierTotalWh;
+
+        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
+        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
+        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
+        const totalKWh = totalWh / 1000;
+
         setShellyStateClass(humidifierStateEl, isOn);
+
+        humidifierStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
       }
 
+      // ---------- Averages ----------
       // averages (support both naming styles from backend)
       const avgTemp = isNum(data.avgTemperature) ? data.avgTemperature : (isNum(data.avgTemp) ? data.avgTemp : null);
       if (avgTemp !== null) setText('avgTempSpan', avgTemp.toFixed(1));
