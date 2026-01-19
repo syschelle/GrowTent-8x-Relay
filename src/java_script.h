@@ -389,8 +389,7 @@ function setShellyStateClass(el, isOn) {
   el.classList.add(isOn ? 'shelly-on' : 'shelly-off');
 }
 
-// ---------- Shelly relay toggle ----------
-async function toggleShellyRelay(device) {
+window.toggleShellyRelay = async function(device) {
   let url;
 
   if (device === 'heater') {
@@ -412,13 +411,17 @@ async function toggleShellyRelay(device) {
 
     console.log('[SHELLY][JS] Toggle OK:', device);
 
-    // Optional: refresh status shortly after toggle
-    setTimeout(updateSensorValues, 600);
+    // Refresh status shortly after toggle (only if available)
+    if (typeof window.updateSensorValues === 'function') {
+      setTimeout(window.updateSensorValues, 600);
+    } else {
+      console.warn('[SHELLY][JS] updateSensorValues not available on window');
+    }
 
   } catch (err) {
     console.error('[SHELLY][JS] Toggle exception:', err);
   }
-}
+};
 
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
@@ -711,6 +714,9 @@ window.addEventListener('DOMContentLoaded', () => {
       setNA();
     }
   }
+
+  window.updateSensorValues = updateSensorValues;
+
   function setNA(){
     setText('tempSpan', 'N/A');
     setText('waterTempSpan', 'N/A');
@@ -862,7 +868,5 @@ window.addEventListener('DOMContentLoaded', () => {
   updateRelayButtons();
 
 }); // end DOMContentLoaded
-
-updateRelayButtons();
 
 )rawliteral";
