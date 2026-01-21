@@ -28,15 +28,25 @@ struct ShellyValues {
 //No TLS support
 //ShellyDevice plugGen1_ipv4 { ShellyGen::Gen1,    "192.168.1.40", 80, 0 };
 enum class ShellyGen : uint8_t { Gen1 = 1, Gen2Plus = 2 };
+// Main switch
+String shMainDevice;
+int shMainKind;
+ShellyValues shMain;
+// Heater
 String shellyHeaterDevice;
 int shellyHeatKind;
 ShellyValues shHeater;
+// Humidifier
 String shellyHumidifierDevice;
 int shellyHumKind;
 ShellyValues shHumidifier;
+//fan
+String shFanDevice;
+int shFanKind;
+ShellyValues shFan;
 // optional Basic Auth:
-String shellyUser;
-String shellyPass;
+String shUser;
+String shPass;
 
 // Host kind enumeration
 enum class HostKind : uint8_t {
@@ -52,8 +62,8 @@ struct ShellyDevice {
   uint16_t port = 80; // normal 80
   uint8_t switchId = 0;
 
-  String User = shellyUser;  // optional Basic Auth username
-  String Pass = shellyPass;  // optional Basic Auth password
+  String Userrrrr = shUser;  // optional Basic Auth username
+  String Pass = shPass;  // optional Basic Auth password
 };
 
 // Pushover notification settings
@@ -116,10 +126,14 @@ static const bool KEY_RELAY_ENABLE_8 = false;
 static const char* KEY_RELAY_START_8;
 static const char* KEY_RELAY_END_8;
 
+static const char* KEY_SHMAINIP;
+static const char* KEY_SHMAINKIND;
 static const char* KEY_SHELLYHEATIP = "shellyHeatIP";
 static const char* KEY_SHELLYHEATKIND = "shellyHeatKind";
 static const char* KEY_SHELLYHUMIP = "shellyHumIP";
-static const char* KEY_SHELLYHUMKIND = "shellyHumKind";
+static const char* KEY_SHELLYFANIP = "shellyFanIP";
+static const char* KEY_SHELLYHUMKIND;
+static const char* KEY_SHELLYFANKIND;
 static const char* KEY_SHELLYUSERNAME = "shellyUser";
 static const char* KEY_SHELLYPASSWORD = "shellyPass";
 

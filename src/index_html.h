@@ -280,6 +280,12 @@ const char* htmlPage = R"rawliteral(
     <div class="spacer"></div>
     <h2 data-i18n="status.shellyControl">Shelly Steuerung</h2>
     <div class="relay-row" id="relayRow">
+      <div class="relay-card" data-relay="shellyMainSw">
+        <div class="relay-title" data-i18n="status.shellyMainSw">Hauptschalter</div>
+        <div id="shelly-main-switch-state" class="shelly-status shelly-off"></div>
+        <div class="info">%SHELLYMAINIP%</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('mainSw')">Toggle</button>
+      </div>
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
         <div id="shelly-heater-state" class="shelly-status shelly-off"></div>
@@ -292,6 +298,12 @@ const char* htmlPage = R"rawliteral(
         <div class="info">%SHELLYHUMIDIFIERIP%</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('humidifier')">Toggle</button>
       </div>
+      <div class="relay-card" data-relay="shellyFan">
+        <div class="relay-title" data-i18n="status.shellyFan">Ventilator</div>
+        <div id="shelly-fan-state" class="shelly-status shelly-off"></div>
+        <div class="info">%SHELLYFANIP%</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('fan')">Toggle</button>
+      </div>
     </div>
     </section>
     
@@ -301,10 +313,24 @@ const char* htmlPage = R"rawliteral(
       <h1 data-i18n="shelly.title">Shelly Einstellungen</h1>
       <h2 data-i18n="status.shellyDevices">Shelly Geräte</h2>
       <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
+        <div class="twoinone-label">
+          <input name="webShMainSwIP" id="shellyIP" style="width: 140px;" type="text" value="%SHMAINIP%">
+          <select name="webShMainSwKind" style="width: 80px; id="shellyMainSwHostKind">
+            <option value=""  %SHMAINSWKIND0%>----</option>
+            <option value="1" %SHMAINSWKIND1%>Gen1</option>
+            <option value="2" %SHMAINSWKIND2%>Gen2</option>
+            <option value="3" %SHMAINSWKIND3%>Gen3</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
         <div class="twoinone-label">
           <input name="webShellyHeatIP" id="shellyIP" style="width: 140px;" type="text" value="%SHELLYHEATERIP%">
           <select name="webShHeatKind" style="width: 80px; id="shellyHeaterHostKind">
+            <option value=""  %SHHEATKIND0%>----</option>
             <option value="1" %SHHEATKIND1%>Gen1</option>
             <option value="2" %SHHEATKIND2%>Gen2</option>
             <option value="3" %SHHEATKIND3%>Gen3</option>
@@ -317,6 +343,7 @@ const char* htmlPage = R"rawliteral(
         <div class="twoinone-label">
           <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 140px;" type="text" value="%SHELLYHUMIDIFIERIP%">
           <select name="webShHumKind" style="width: 80px; id="shellyHumidifierHostKind">
+            <option value=""  %SHHUMIDKIND0%>----</option>
             <option value="1" %SHHUMIDKIND1%>Gen1</option>
             <option value="2" %SHHUMIDKIND2%>Gen2</option>
             <option value="3" %SHHUMIDKIND3%>Gen3</option>
@@ -324,15 +351,28 @@ const char* htmlPage = R"rawliteral(
         </div>
       </div>
 
+      <div class="form-group">
+        <label for="shIPFan" data-i18n="shelly.shellyIPFan">Shelly IP Adresse für Ventilator:</label>
+        <div class="twoinone-label">
+          <input name="webShFanIp" id="shellyIPFan" style="width: 140px;" type="text" value="%SHELLYFANIP%">
+          <select name="webShFanKind" style="width: 80px; id="shellyFanHostKind">
+            <option value=""  %SHFANKIND0%>----</option>
+            <option value="1" %SHFANKIND1%>Gen1</option>
+            <option value="2" %SHFANKIND2%>Gen2</option>
+            <option value="3" %SHFANKIND3%>Gen3</option>
+          </select>
+        </div>
+      </div>
+
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
-        <input name="webShellyUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHELLYUSERNAME%">
+        <input name="webShellyUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHUSER%">
       </div>
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShellyPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHELLYPASSWORD%">
+        <input name="webShellyPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>

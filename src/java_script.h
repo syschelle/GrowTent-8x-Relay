@@ -67,8 +67,10 @@ const char* jsContent = R"rawliteral(
     "status.tank": "Tank Füllung",
     "status.pingTank": "prüfen",
     "status.shellyControl": "Shelly Steuerung",
+    "status.shellyMainSw": "Hauptschalter",
     "status.shellyHeater": "Heizung",
     "status.shellyHumidifier": "Luftbefeuchter",
+    "status.shellyFan": "Ventilator",
     "status.relayOn": "einschalten (10s)",
     "runsetting.title": "Betriebseinstellungen",
     "runsetting.startGrow": "Startdatum:",
@@ -186,8 +188,10 @@ const char* jsContent = R"rawliteral(
     "status.tank": "Tank Level",
     "status.pingTank": "check",
     "status.shellyControl": "Shelly Control",
+    "status.shellyMainSw": "Main Switch",
     "status.shellyHeater": "Heater",
     "status.shellyHumidifier": "Humidifier",
+    "status.shellyFan": "Fan",
     "status.wateringLeft": "left",
     "status.endIn": "end in",
     "runsetting.relayScheduling": "Relay Scheduling",
@@ -664,6 +668,26 @@ window.addEventListener('DOMContentLoaded', () => {
         setText('irTimeLeftSpan', '00:00');
       }
 
+      // ---- Shelly Main Switch ----
+      const mainSwitchEl = document.getElementById('shelly-main-switch-state');
+      if (mainSwitchEl) {
+        const rawStatus = data.shellyMainSwitchStatus;
+        const rawPower  = data.shellyMainSwitchPower;
+        const rawTotalWh = data.shellyMainSwitchTotalWh;
+
+        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
+        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
+        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
+        const totalKWh = totalWh / 1000;
+
+        setShellyStateClass(mainSwitchEl, isOn);
+
+        mainSwitchEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+      }
+
       // ---------- Heater ----------
       const heaterStateEl = document.getElementById('shelly-heater-state');
       if (heaterStateEl) {
@@ -699,6 +723,26 @@ window.addEventListener('DOMContentLoaded', () => {
         setShellyStateClass(humidifierStateEl, isOn);
 
         humidifierStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+      }
+
+      // ---------- Fan ----------
+      const fanStateEl = document.getElementById('shelly-fan-state');
+      if (fanStateEl) {
+        const rawStatus = data.shellyFanStatus;
+        const rawPower  = data.shellyFanPower;
+        const rawTotalWh = data.shellyFanTotalWh;
+
+        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
+        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
+        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
+        const totalKWh = totalWh / 1000;
+
+        setShellyStateClass(fanStateEl, isOn);
+
+        fanStateEl.innerHTML = `
           <div>${powerW.toFixed(1)} W</div>
           <div class="sub">${totalKWh.toFixed(2)} kWh</div>
         `;

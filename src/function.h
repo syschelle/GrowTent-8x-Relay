@@ -214,8 +214,26 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    html.replace("%SHELLYHEATERIP%", shellyHeaterDevice);
+    html.replace("%SHMAINIP%", shMainDevice);
+    if (shMainKind == 1) {
+      html.replace("%SHMAINSWKIND1%", "selected");
+      html.replace("%SHMAINSWKIND2%", "");
+      html.replace("%SHMAINSWKIND3%", "");
+    } else if (shMainKind == 2) {
+      html.replace("%SHMAINSWKIND1%", "");
+      html.replace("%SHMAINSWKIND2%", "selected");
+      html.replace("%SHMAINSWKIND3%", "");
+    } else if (shMainKind == 3) {
+      html.replace("%SHMAINSWKIND1%", "");
+      html.replace("%SHMAINSWKIND2%", "");
+      html.replace("%SHMAINSWKIND3%", "selected");
+    } else {
+      html.replace("%SHMAINSWKIND1%", "");
+      html.replace("%SHMAINSWKIND2%", "");
+      html.replace("%SHMAINSWKIND3%", "");
+    }
 
+    html.replace("%SHELLYHEATERIP%", shellyHeaterDevice);
     if (shellyHeatKind == 1) {
       html.replace("%SHHEATKIND1%", "selected");
       html.replace("%SHHEATKIND2%", "");
@@ -235,7 +253,6 @@ void handleRoot() {
     }
 
     html.replace("%SHELLYHUMIDIFIERIP%", shellyHumidifierDevice);
-
     if (shellyHumKind == 1) {
       html.replace("%SHHUMIDKIND1%", "selected");
       html.replace("%SHHUMIDKIND2%", "");
@@ -254,8 +271,27 @@ void handleRoot() {
       html.replace("%SHHUMIDKIND3%", "");
     }
 
-    html.replace("%SHELLYUSERNAME%", shellyUser);
-    html.replace("%SHELLYPASSWORD%", shellyPass);
+    html.replace("%SHELLYFANIP%", shFanDevice);
+    if (shFanKind == 1) {
+      html.replace("%SHFANKIND1%", "selected");
+      html.replace("%SHFANKIND2%", "");
+      html.replace("%SHFANKIND3%", "");
+    } else if (shFanKind == 2) {
+      html.replace("%SHFANKIND1%", "");
+      html.replace("%SHFANKIND2%", "selected");
+      html.replace("%SHFANKIND3%", "");
+    } else if (shFanKind == 3) {
+      html.replace("%SHFANKIND1%", "");
+      html.replace("%SHFANKIND2%", "");
+      html.replace("%SHFANKIND3%", "selected");
+    } else {
+      html.replace("%SHFANKIND1%", "");
+      html.replace("%SHFANKIND2%", "");
+      html.replace("%SHFANKIND3%", "");
+    }
+
+    html.replace("%SHUSER%", shUser);
+    html.replace("%SHPASSWORD%", shPass);
 
     html.replace("%NTPSERVER%", ntpServer);
     html.replace("%TZINFO%", tzInfo);
@@ -323,12 +359,18 @@ void readPreferences() {
   relaySchedulesStart[4] = preferences.getInt(KEY_RELAY_START_5, 0);
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
 
+  // Shelly devices
+  shMainDevice = preferences.isKey(KEY_SHMAINIP) ? preferences.getString(KEY_SHMAINIP) : String("");
+  shMainKind = preferences.isKey(KEY_SHMAINKIND) ? preferences.getInt(KEY_SHMAINKIND) : 0;
   shellyHeaterDevice = preferences.isKey(KEY_SHELLYHEATIP) ? preferences.getString(KEY_SHELLYHEATIP) : String("");
   shellyHeatKind = preferences.isKey(KEY_SHELLYHEATKIND) ? preferences.getInt(KEY_SHELLYHEATKIND) : 0;
   shellyHumidifierDevice = preferences.isKey(KEY_SHELLYHUMIP) ? preferences.getString(KEY_SHELLYHUMIP) : String("");
   shellyHumKind = preferences.isKey(KEY_SHELLYHUMKIND) ? preferences.getInt(KEY_SHELLYHUMKIND) : 0;
-  shellyUser = preferences.isKey(KEY_SHELLYUSERNAME) ? preferences.getString(KEY_SHELLYUSERNAME) : String("");
-  shellyPass = preferences.isKey(KEY_SHELLYPASSWORD) ? preferences.getString(KEY_SHELLYPASSWORD) : String("");
+  shFanDevice = preferences.isKey(KEY_SHELLYFANIP) ? preferences.getString(KEY_SHELLYFANIP) : String("");
+  shFanKind = preferences.isKey(KEY_SHELLYFANKIND) ? preferences.getInt(KEY_SHELLYFANKIND) : 0;
+  // optional Basic Auth:
+  shUser = preferences.isKey(KEY_SHELLYUSERNAME) ? preferences.getString(KEY_SHELLYUSERNAME) : String("");
+  shPass = preferences.isKey(KEY_SHELLYPASSWORD) ? preferences.getString(KEY_SHELLYPASSWORD) : String("");
 
   // settings
   boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
@@ -482,44 +524,66 @@ void handleSaveShellySettings() {
     return;
   }
 
-  // Save Shelly Heater IP if provided
+  if (server.hasArg("webShellyMainSwIP")) {
+    shMainDevice = server.arg("webShellyMainSwIP");
+    preferences.putString(KEY_SHMAINIP, shMainDevice);
+    logPrint("[PREFERENCES] " + String(KEY_SHMAINIP) + " written bytes: " + shMainDevice);
+  }
+
+  if (server.hasArg("webShMainSwKind")) {
+    shMainKind = server.arg("webShMainSwKind").toInt();
+    preferences.putInt(KEY_SHMAINKIND, shMainKind);
+    logPrint("[PREFERENCES] Shelly Main Switch Kind set to: " + String(shMainKind));
+  }
+
+  // Save Shelly Heater if provided
   if (server.hasArg("webShellyHeatIP")) {
     shellyHeaterDevice = server.arg("webShellyHeatIP");
     preferences.putString(KEY_SHELLYHEATIP, shellyHeaterDevice);
     logPrint("[PREFERENCES] " + String(KEY_SHELLYHEATIP) + " written bytes: " + shellyHeaterDevice);
   }
-
   if (server.hasArg("webShHeatKind")) {
     shellyHeatKind = server.arg("webShHeatKind").toInt();
     preferences.putInt(KEY_SHELLYHEATKIND, shellyHeatKind);
     logPrint("[PREFERENCES] Shelly Heater Kind set to: " + String(shellyHeatKind));
   }
 
-  // Save Shelly Humidifier IP if provided
+  // Save Shelly Humidifier provided
   if (server.hasArg("webShellyHumIP")) {
     shellyHumidifierDevice = server.arg("webShellyHumIP");
     preferences.putString(KEY_SHELLYHUMIP, shellyHumidifierDevice);
     logPrint("[PREFERENCES] " + String(KEY_SHELLYHUMIP) + " written bytes: " + shellyHumidifierDevice);
   }
-
   if (server.hasArg("webShHumKind")) {
     shellyHumKind = server.arg("webShHumKind").toInt();
     preferences.putInt(KEY_SHELLYHUMKIND, shellyHumKind);
     logPrint("[PREFERENCES] Shelly Humidifier Kind set to: " + String(shellyHumKind));
   }
 
+  // Save Shelly Fan if provided
+  if (server.hasArg("webShFanIp")) {
+    shFanDevice = server.arg("webShFanIp");
+    preferences.putString(KEY_SHELLYFANIP, shFanDevice);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYFANIP) + " written bytes: " + shFanDevice);
+  }
+  if (server.hasArg("webShFanKind")) {
+    shFanKind = server.arg("webShFanKind").toInt();
+    preferences.putInt(KEY_SHELLYFANKIND, shFanKind);
+    logPrint("[PREFERENCES] Shelly Fan Kind set to: " + String(shFanKind));
+  }
+
   // Save Shelly Username if provided
   if (server.hasArg("webShellyUsername")) {
-    shellyUser = server.arg("webShellyUsername");
-    preferences.putString(KEY_SHELLYUSERNAME, shellyUser);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYUSERNAME) + " written bytes: " + shellyUser);
+    shUser = server.arg("webShellyUsername");
+    preferences.putString(KEY_SHELLYUSERNAME, shUser);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYUSERNAME) + " written bytes: " + shUser);
   }
 
   // Save Shelly Password if provided
   if (server.hasArg("webShellyPassword")) {
-    shellyPass = server.arg("webShellyPassword");
-    preferences.putString(KEY_SHELLYPASSWORD, shellyPass);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYPASSWORD) + " written bytes: " + shellyPass);
+    shPass = server.arg("webShellyPassword");
+    preferences.putString(KEY_SHELLYPASSWORD, shPass);
+    logPrint("[PREFERENCES] " + String(KEY_SHELLYPASSWORD) + " written bytes: " + shPass);
   }
 
   preferences.end(); // always close Preferences handle
@@ -1056,8 +1120,29 @@ String readSensorData() {
   }
   json += "],\n";
   
+  // ---- Shelly Main Switch ----
+  if (!shMain.ok) {
+    logPrint("[API] MAIN SWITCH request not ok");
+    json += "\"shellyMainSwitchStatus\":false,\n";
+    json += "\"shellyMainSwitchPower\":null,\n";
+    json += "\"shellyMainSwitchTotalWh\":null,\n";
+  } else {
+    json += "\"shellyMainSwitchStatus\":" + String(shMain.isOn ? "true" : "false") + ",\n";
+    if (!isnan(shMain.powerW) && !isinf(shMain.powerW)) {
+      json += "\"shellyMainSwitchPower\":" + String(shMain.powerW, 2) + ",\n";
+    } else {
+      json += "\"shellyMainSwitchPower\":null,\n";
+    }
+    if (!isnan(shMain.energyWh) && !isinf(shMain.energyWh)) {
+      json += "\"shellyMainSwitchTotalWh\":" + String(shMain.energyWh, 2) + ",\n";
+    } else {
+      json += "\"shellyMainSwitchTotalWh\":null,\n";
+    }
+  }
+
   // ---- Shelly Heater ----
   if (!shHeater.ok) {
+    logPrint("[API] HEATER request not ok");
     json += "\"shellyHeaterStatus\":false,\n";
     json += "\"shellyHeaterPower\":null,\n";
     json += "\"shellyHeaterTotalWh\":null,\n";
@@ -1076,7 +1161,9 @@ String readSensorData() {
     }
   }
 
+  // ---- Shelly Humidifier ----
   if (!shHumidifier.ok) {
+    logPrint("[API] HUMIDIFIER request not ok");
     json += "\"shellyHumidifierStatus\":false,\n";
     json += "\"shellyHumidifierPower\":null,\n";
     json += "\"shellyHumidifierTotalWh\":null,\n";
@@ -1091,6 +1178,26 @@ String readSensorData() {
       json += "\"shellyHumidifierTotalWh\":" + String(shHumidifier.energyWh, 2) + ",\n";
     } else {
       json += "\"shellyHumidifierTotalWh\":null,\n";
+    }
+  }
+
+  // ---- Shelly Fan ----
+  if (!shFan.ok) {
+    logPrint("[SHELLY] FAN request not ok");
+    json += "\"shellyFanStatus\":false,\n";
+    json += "\"shellyFanPower\":null,\n";
+    json += "\"shellyFanTotalWh\":null,\n";
+  } else {
+    json += "\"shellyFanStatus\":" + String(shFan.isOn ? "true" : "false") + ",\n";
+    if (!isnan(shFan.powerW) && !isinf(shFan.powerW)) {
+      json += "\"shellyFanPower\":" + String(shFan.powerW, 2) + ",\n";
+    } else {
+      json += "\"shellyFanPower\":null,\n";
+    }
+    if (!isnan(shFan.energyWh) && !isinf(shFan.energyWh)) {
+      json += "\"shellyFanTotalWh\":" + String(shFan.energyWh, 2) + ",\n";
+    } else {
+      json += "\"shellyFanTotalWh\":null,\n";
     }
   }
 
@@ -1782,7 +1889,7 @@ ShellyValues getShellyValues(const String& host, uint8_t gen, uint8_t switchId =
   String body;
 
   // Gen1 often uses Basic or simple auth; Gen2/3 typically uses Digest
-  bool ok = httpGetWithDigestAutoAuth(host, port, path, shellyUser, shellyPass, code, body);
+  bool ok = httpGetWithDigestAutoAuth(host, port, path, shUser, shPass, code, body);
   if (!ok) {
     logPrint("[SHELLY] request failed");
     return v;
@@ -1844,7 +1951,7 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
   int code = -1;
   String body;
 
-  bool ok = httpGetWithDigestAutoAuth(host, port, path, shellyUser, shellyPass, code, body);
+  bool ok = httpGetWithDigestAutoAuth(host, port, path, shUser, shPass, code, body);
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
   return ok && (code == 200);
 }
