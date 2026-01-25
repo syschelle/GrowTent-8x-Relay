@@ -17,6 +17,126 @@ String ssidName = "";
 String ssidPassword = "";
 bool wifiReady = false;
 
+// Preferences namespace + keys
+const char* PREF_NS = "growtent";
+const char* KEY_SSID = "ssid";
+const char* KEY_PASS = "password";
+const char* KEY_DEBUG_ENABLED = "dbg";
+
+// Running settings keys
+const char* KEY_STARTDATE = "startDate";
+const char* KEY_FLOWERDATE = "startFlowering";
+const char* KEY_DRYINGDATE = "startDrying";
+const char* KEY_CURRENTPHASE = "curPhase";
+const char* KEY_TARGETTEMP = "targetTemp";
+const char* KEY_LEAFTEMP = "offsetLeaf";
+const char* KEY_TARGETVPD = "targetVPD";
+const char* KEY_TIMEPERTASK = "timePerTask";
+const char* KEY_BETWEENTASKS = "betweenTasks";
+const char* KEY_AMOUNTOFWATER = "amountOfWater";
+const char* KEY_IRRIGATION = "irrigation";
+const char* KEY_MINTANK = "minTank";
+const char* KEY_MAXTANK = "maxTank";
+
+// Relay schedule keys
+const char* KEY_RELAY_START_1 = "relay_start_1";
+const char* KEY_RELAY_END_1   = "relay_end_1";
+const char* KEY_RELAY_START_2 = "relay_start_2";
+const char* KEY_RELAY_END_2   = "relay_end_2";
+const char* KEY_RELAY_START_3 = "relay_start_3";
+const char* KEY_RELAY_END_3   = "relay_end_3";
+const char* KEY_RELAY_START_4 = "relay_start_4";
+const char* KEY_RELAY_END_4   = "relay_end_4";
+const char* KEY_RELAY_START_5 = "relay_start_5";
+const char* KEY_RELAY_END_5   = "relay_end_5";
+const char* KEY_RELAY_START_6 = "relay_start_6";
+const char* KEY_RELAY_END_6   = "relay_end_6";
+const char* KEY_RELAY_START_7 = "relay_start_7";
+const char* KEY_RELAY_END_7   = "relay_end_7";
+const char* KEY_RELAY_START_8 = "relay_start_8";
+const char* KEY_RELAY_END_8   = "relay_end_8";
+
+// Shelly device keys
+const char* KEY_SHMAINIP = "shMainIP";
+const char* KEY_SHMAINGEN = "shMainGen";
+const char* KEY_SHELLYHEATIP = "shHeatIP";
+const char* KEY_SHELLYHEATGEN = "shHeatGen";
+const char* KEY_SHELLYHUMIP = "shHumIP";
+const char* KEY_SHELLYHUMGEN = "shHumGen";
+const char* KEY_SHELLYFANIP = "shFanIP";
+const char* KEY_SHELLYFANGEN = "shFanGen";
+const char* KEY_SHELLYUSERNAME = "shUser";
+const char* KEY_SHELLYPASSWORD = "shPass";
+
+// UI/settings keys
+const char* KEY_NAME   = "boxName";
+const char* KEY_LANG   = "lang";
+const char* KEY_THEME  = "theme";
+const char* KEY_UNIT   = "unit";
+const char* KEY_TFMT   = "timeFmt";
+const char* KEY_NTPSRV = "ntpSrv";
+const char* KEY_TZINFO = "tzInfo";
+const char* KEY_DS18B20ENABLE = "ds18b20enable";
+const char* KEY_DS18NAME = "ds18b20Name";
+const char* KEY_RELAY_1 = "relay1";
+const char* KEY_RELAY_2 = "relay2";
+const char* KEY_RELAY_3 = "relay3";
+const char* KEY_RELAY_4 = "relay4";
+const char* KEY_RELAY_5 = "relay5";
+const char* KEY_RELAY_6 = "relay6";
+const char* KEY_RELAY_7 = "relay7";
+const char* KEY_RELAY_8 = "relay8";
+
+// Notification keys
+const char* KEY_PUSHOVER = "pushover";
+const char* KEY_PUSHOVERAPP = "pushoverAppKey";
+const char* KEY_PUSHOVERUSER = "pushoverUser";
+const char* KEY_PUSHOVERDEVICE = "pushoverDevice";
+const char* KEY_GOTIFY = "gotify";
+const char* KEY_GOTIFYSERVER = "gotifyServer";
+const char* KEY_GOTIFYTOKEN = "gotifyToken";
+
+// Legacy/global UI vars (used throughout runtime.h/function.h)
+String boxName = "newGrowTent";
+String language = "de";
+String theme = "light";
+String unit = "metric";
+String timeFormat = "24h";
+bool espMode = false;
+
+// Relay scheduling arrays + relay names (legacy)
+bool relaySchedulesEnabled[NUM_RELAYS] = {false};
+int  relaySchedulesStart[NUM_RELAYS] = {0};
+int  relaySchedulesEnd[NUM_RELAYS] = {0};
+String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4","relay 5","relay 6","relay 7","relay 8"};
+
+// Grow / phase globals (legacy)
+String startDate = "";
+String startFlowering = "";
+String startDrying = "";
+int curPhase = 1;
+float targetTemperature = 22.0f;
+float offsetLeafTemperature = -1.5f;
+float targetVPD = 1.0f;
+int amountOfWater = 20;
+int irrigation = 500;
+int irrigationRuns = 0;
+int timePerTask = 10;
+int betweenTasks = 5;
+String wTimeLeft = "";
+
+// Notifications (legacy)
+bool pushoverSent = false;
+String pushoverEnabled = "";
+String pushoverAppKey = "";
+String pushoverUserKey = "";
+String pushoverDevice = "";
+
+bool gotifySent = false;
+String gotifyEnabled = "";
+String gotifyServer = "";
+String gotifyToken = "";
+
 // Relays
 const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };
 bool relayStates[NUM_RELAYS] = { false };

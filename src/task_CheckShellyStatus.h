@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
-#include <config.h>
+#include "globals.h"
 #include <cstdarg>
 
 extern Preferences preferences;

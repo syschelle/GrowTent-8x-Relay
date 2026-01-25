@@ -157,6 +157,126 @@ extern String ssidName;
 extern String ssidPassword;
 extern bool wifiReady;
 
+// Preferences namespace + keys
+extern const char* PREF_NS;
+extern const char* KEY_SSID;
+extern const char* KEY_PASS;
+extern const char* KEY_DEBUG_ENABLED;
+
+// Running settings keys
+extern const char* KEY_STARTDATE;
+extern const char* KEY_FLOWERDATE;
+extern const char* KEY_DRYINGDATE;
+extern const char* KEY_CURRENTPHASE;
+extern const char* KEY_TARGETTEMP;
+extern const char* KEY_LEAFTEMP;
+extern const char* KEY_TARGETVPD;
+extern const char* KEY_TIMEPERTASK;
+extern const char* KEY_BETWEENTASKS;
+extern const char* KEY_AMOUNTOFWATER;
+extern const char* KEY_IRRIGATION;
+extern const char* KEY_MINTANK;
+extern const char* KEY_MAXTANK;
+
+// Relay schedule keys (start/end as stored in Preferences)
+extern const char* KEY_RELAY_START_1;
+extern const char* KEY_RELAY_END_1;
+extern const char* KEY_RELAY_START_2;
+extern const char* KEY_RELAY_END_2;
+extern const char* KEY_RELAY_START_3;
+extern const char* KEY_RELAY_END_3;
+extern const char* KEY_RELAY_START_4;
+extern const char* KEY_RELAY_END_4;
+extern const char* KEY_RELAY_START_5;
+extern const char* KEY_RELAY_END_5;
+extern const char* KEY_RELAY_START_6;
+extern const char* KEY_RELAY_END_6;
+extern const char* KEY_RELAY_START_7;
+extern const char* KEY_RELAY_END_7;
+extern const char* KEY_RELAY_START_8;
+extern const char* KEY_RELAY_END_8;
+
+// Shelly device keys
+extern const char* KEY_SHMAINIP;
+extern const char* KEY_SHMAINGEN;
+extern const char* KEY_SHELLYHEATIP;
+extern const char* KEY_SHELLYHEATGEN;
+extern const char* KEY_SHELLYHUMIP;
+extern const char* KEY_SHELLYHUMGEN;
+extern const char* KEY_SHELLYFANIP;
+extern const char* KEY_SHELLYFANGEN;
+extern const char* KEY_SHELLYUSERNAME;
+extern const char* KEY_SHELLYPASSWORD;
+
+// UI/settings keys
+extern const char* KEY_NAME;
+extern const char* KEY_LANG;
+extern const char* KEY_THEME;
+extern const char* KEY_UNIT;
+extern const char* KEY_TFMT;
+extern const char* KEY_NTPSRV;
+extern const char* KEY_TZINFO;
+extern const char* KEY_DS18B20ENABLE;
+extern const char* KEY_DS18NAME;
+extern const char* KEY_RELAY_1;
+extern const char* KEY_RELAY_2;
+extern const char* KEY_RELAY_3;
+extern const char* KEY_RELAY_4;
+extern const char* KEY_RELAY_5;
+extern const char* KEY_RELAY_6;
+extern const char* KEY_RELAY_7;
+extern const char* KEY_RELAY_8;
+
+// Notification keys
+extern const char* KEY_PUSHOVER;
+extern const char* KEY_PUSHOVERAPP;
+extern const char* KEY_PUSHOVERUSER;
+extern const char* KEY_PUSHOVERDEVICE;
+extern const char* KEY_GOTIFY;
+extern const char* KEY_GOTIFYSERVER;
+extern const char* KEY_GOTIFYTOKEN;
+
+// Legacy/global UI vars (used throughout runtime.h/function.h)
+extern String boxName;
+extern String language;
+extern String theme;
+extern String unit;
+extern String timeFormat;
+extern bool espMode;
+
+// Relay scheduling arrays + relay names (legacy)
+extern bool relaySchedulesEnabled[NUM_RELAYS];
+extern int  relaySchedulesStart[NUM_RELAYS];
+extern int  relaySchedulesEnd[NUM_RELAYS];
+extern String relayNames[NUM_RELAYS];
+
+// Grow / phase globals (legacy)
+extern String startDate;
+extern String startFlowering;
+extern String startDrying;
+extern int curPhase;
+extern float targetTemperature;
+extern float offsetLeafTemperature;
+extern float targetVPD;
+extern int amountOfWater;
+extern int irrigation;
+extern int irrigationRuns;
+extern int timePerTask;
+extern int betweenTasks;
+extern String wTimeLeft;
+
+// Notifications (legacy)
+extern bool pushoverSent;
+extern String pushoverEnabled;
+extern String pushoverAppKey;
+extern String pushoverUserKey;
+extern String pushoverDevice;
+
+extern bool gotifySent;
+extern String gotifyEnabled;
+extern String gotifyServer;
+extern String gotifyToken;
+
 // Relays
 extern const int relayPins[NUM_RELAYS];
 extern bool relayStates[NUM_RELAYS];

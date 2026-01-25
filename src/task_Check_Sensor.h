@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <Adafruit_BME280.h>
-#include <config.h>
+#include "globals.h"
 #include <cstdarg>
 
 extern Preferences preferences;
