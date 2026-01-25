@@ -39,6 +39,11 @@ ShellySettings shelly;
 SensorReadings cur;
 Targets target;
 
+// Global OneWire + DallasTemperature instance for DS18B20
+OneWire oneWire(DS18B20_PIN);
+
+// Definition for the extern declared in runtime.h
+DallasTemperature sensors(&oneWire);
 
 //function prototypes
 void handleSave();
@@ -135,8 +140,6 @@ void setup() {
       }
 
       // Initialize DS18B20 sensor
-      OneWire oneWire(DS18B20_PIN);
-      DallasTemperature sensors(&oneWire);
       sensors.begin();
    
       // Create a task to turn off water pumps after 10 seconds

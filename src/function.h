@@ -434,23 +434,23 @@ int secondsToMilliseconds(int seconds) {
 }
 
 // CSV: ts_ms,tempC,hum,vpd\n
-static void appendLog(uint32_t ts, float t, float h, float v) {
+// Append one CSV line: ts_ms,tempC,humPct,vpdKpa
+void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd) {
   File f = LittleFS.open(LOG_PATH, FILE_APPEND);
-  if (!f) { logPrint("appendLog: open failed"); return; }
-  logPrint("[LITTLEFS] Loging data: " + String(ts) + "," + String(t,1) + "," + String(h,0) + "," + String(v,1));
-  // Zahlen schlank formatieren
-  String line;
-  line.reserve(40);
-  line += String(ts); line += ',';
-  line += String(t, 2); line += ',';
-  line += String(h, 0); line += ',';
-  line += String(v, 3); line += '\n';
-  if(f.print(line)){
-        logPrint("[LITTLEFS] " + String(LOG_PATH) + " file written");
-    } else {
-        logPrint("[LITTLEFS] " + String(LOG_PATH) + " write failed");
-    }
-    f.close();
+  if (!f) {
+    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH));
+    return;
+  }
+
+  f.print(String(timestamp));
+  f.print(',');
+  f.print(String(temperature, 2));
+  f.print(',');
+  f.print(String(humidity, 2));
+  f.print(',');
+  f.print(String(vpd, 3));
+  f.print('\n');
+  f.close();
 }
 
 // Compaction: discard everything < (now-RETAIN_MS)
