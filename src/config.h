@@ -15,55 +15,82 @@ String ssidName = "";
 String ssidPassword = "";
 
 struct ShellyValues {
-  bool ok = false;
-  bool isOn = false;
-
-  float powerW   = NAN;
-  float voltageV = NAN;
-  float currentA = NAN;
-  float energyWh = NAN;
+  bool  ok = false;     // API reachable
+  bool  isOn = false;   // Relay state
+  float powerW = 0.0f;  // current power consumption (W)
+  float energyWh = 0.0f;
 };
+
+struct ShellyDevice {
+  String ip;
+  int    kind;
+  int    gen;
+  ShellyValues values;
+};
+
+struct ShellySettings {
+  ShellyDevice main;
+  ShellyDevice heat;
+  ShellyDevice hum;
+  ShellyDevice fan;
+
+  String username;
+  String password;
+};
+
+extern ShellySettings shelly;
+
+// Last published sensor values
+struct SensorReadings {
+  float temperatureC      = NAN;  // lastTemperature
+  float humidityPct       = NAN;  // lastHumidity
+  float extTempC          = NAN;  // lastExtSensorTemperature
+  float vpdKpa            = NAN;  // lastVPD
+
+  uint32_t lastUpdateMs   = 0;    // optional: wann aktualisiert
+  bool ok() const { return !isnan(temperatureC) && !isnan(humidityPct); }
+};
+
+struct Targets {
+  float targetVpdKpa = NAN;   // targetVPD
+  float targetTempC  = NAN;   // targetTemperature
+  float targetHumPct = NAN;   // targetHumidity
+};
+
+struct AvgAccumulator {
+  float sum = 0.0f;
+  uint32_t count = 0;
+
+  inline void add(float v) {
+    sum += v;
+    count++;
+  }
+
+  inline float avg() const {
+    return (count == 0) ? 0.0f : (sum / count);
+  }
+
+  inline void reset() {
+    sum = 0.0f;
+    count = 0;
+  }
+};
+
+AvgAccumulator tempAvg;
+AvgAccumulator humAvg;
+AvgAccumulator vpdAvg;
+AvgAccumulator waterTempAvg;
 
 // Shelly device configuration
 //No TLS support
 //ShellyDevice plugGen1_ipv4 { ShellyGen::Gen1,    "192.168.1.40", 80, 0 };
 enum class ShellyGen : uint8_t { Gen1 = 1, Gen2Plus = 2 };
-// Main switch
-String shMainDevice;
-int shMainKind;
-ShellyValues shMain;
-// Heater
-String shellyHeaterDevice;
-int shellyHeatKind;
-ShellyValues shHeater;
-// Humidifier
-String shellyHumidifierDevice;
-int shellyHumKind;
-ShellyValues shHumidifier;
-//fan
-String shFanDevice;
-int shFanKind;
-ShellyValues shFan;
-// optional Basic Auth:
-String shUser;
-String shPass;
 
 // Host kind enumeration
 enum class HostKind : uint8_t {
   IPv4,
   IPv6,
   DNS
-};
-
-// Structure to hold Shelly device info
-struct ShellyDevice {
-  ShellyGen gen;
-  String host;        // e.g. "192.168.1.10" or "shellyplug.local" or "2001:db8::1"
-  uint16_t port = 80; // normal 80
-  uint8_t switchId = 0;
-
-  String Userrrrr = shUser;  // optional Basic Auth username
-  String Pass = shPass;  // optional Basic Auth password
 };
 
 // Pushover notification settings
@@ -126,16 +153,17 @@ static const bool KEY_RELAY_ENABLE_8 = false;
 static const char* KEY_RELAY_START_8;
 static const char* KEY_RELAY_END_8;
 
+// Shelly device keys
 static const char* KEY_SHMAINIP;
-static const char* KEY_SHMAINKIND;
-static const char* KEY_SHELLYHEATIP = "shellyHeatIP";
-static const char* KEY_SHELLYHEATKIND = "shellyHeatKind";
-static const char* KEY_SHELLYHUMIP = "shellyHumIP";
-static const char* KEY_SHELLYFANIP = "shellyFanIP";
-static const char* KEY_SHELLYHUMKIND;
-static const char* KEY_SHELLYFANKIND;
-static const char* KEY_SHELLYUSERNAME = "shellyUser";
-static const char* KEY_SHELLYPASSWORD = "shellyPass";
+static const char* KEY_SHMAINGEN;
+static const char* KEY_SHELLYHEATIP;
+static const char* KEY_SHELLYHEATGEN;
+static const char* KEY_SHELLYHUMIP;
+static const char* KEY_SHELLYFANIP;
+static const char* KEY_SHELLYHUMGEN;
+static const char* KEY_SHELLYFANGEN;
+static const char* KEY_SHELLYUSERNAME;
+static const char* KEY_SHELLYPASSWORD;
 
 // settings
 static const char* KEY_NAME     = "boxName";
@@ -212,7 +240,8 @@ int relaySchedulesStart[NUM_RELAYS];
 int relaySchedulesEnd[NUM_RELAYS];
 
 // human designations for the relays
-static const char* relayNames[NUM_RELAYS];
+//static const char* relayNames[NUM_RELAYS];
+String relayNames[NUM_RELAYS];
 
 // Global configuration variables
 String boxName;
@@ -239,10 +268,6 @@ RTC_DATA_ATTR int lastSyncDay = -1;
 // structure to hold time info
 struct tm local;
 
-// Last published sensor values
-volatile float lastTemperature = NAN;
-volatile float lastHumidity = NAN;
-volatile float lastVPD = NAN;
 // Timestamp of last sensor read
 const uint32_t READ_INTERVAL_MS = 1000;
 uint32_t lastRead = 0;

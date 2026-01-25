@@ -367,12 +367,12 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
-        <input name="webShellyUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHUSER%">
+        <input name="webShUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHUSER%">
       </div>
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShellyPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHPASSWORD%">
+        <input name="webShPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>

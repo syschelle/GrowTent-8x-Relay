@@ -32,6 +32,14 @@ WebServer server(80);
 // define weblog buffer variable
 std::deque<String> logBuffer;
 
+// define ShellySettings variable
+ShellySettings shelly;
+
+// BME280 and DS18B20 sensor
+SensorReadings cur;
+Targets target;
+
+
 //function prototypes
 void handleSave();
 void startSoftAP();
@@ -114,7 +122,7 @@ void setup() {
             logPrint("[SENSOR] BME280 initialized at 0x" + String(a, HEX));
             bmeAvailable = true;
             readSensorData();
-            addReading(lastTemperature, lastHumidity, lastVPD);
+            addReading(cur.extTempC, cur.humidityPct, cur.vpdKpa);
             bmeInit = true;
           } else {
             delay(250);
@@ -230,10 +238,10 @@ void setup() {
     bool ok = false;
     bool newState = false;
 
-    ShellyValues v = getShellyValues(shellyHeaterDevice, shellyHeatKind, 0, 80);
+    ShellyValues v = getShellyValues(shelly.heat, shelly.heat.gen, 0);
     if (v.ok) {
       newState = !v.isOn;
-      ok = shellySwitchSet(shellyHeaterDevice, shellyHeatKind, newState, 0, 80);
+      ok = shellySwitchSet(shelly.heat.ip, shelly.heat.gen, newState, 0, 80);
     }
 
     String resp = String("{\"ok\":") + (ok ? "true" : "false") +
@@ -245,10 +253,10 @@ void setup() {
     bool ok = false;
     bool newState = false;
 
-    ShellyValues v = getShellyValues(shellyHumidifierDevice, shellyHumKind, 0, 80);
+    ShellyValues v = getShellyValues(shelly.hum, shelly.hum.gen, 0);
     if (v.ok) {
       newState = !v.isOn;
-      ok = shellySwitchSet(shellyHumidifierDevice, shellyHumKind, newState, 0, 80);
+      ok = shellySwitchSet(shelly.hum.ip, shelly.hum.gen, newState, 0);
     }
 
     String resp = String("{\"ok\":") + (ok ? "true" : "false") +
@@ -286,8 +294,8 @@ void setup() {
   logPrint("[APP] Web server started");
 
   // Initial Shelly device status fetch
-  shHeater = getShellyValues(shellyHeaterDevice, shellyHeatKind);
-  shHumidifier = getShellyValues(shellyHumidifierDevice, shellyHumKind);
+  shelly.heat.values = getShellyValues(shelly.heat, 0);
+  shelly.hum.values  = getShellyValues(shelly.hum,  0);
   
   // Initial tank level reading
   readTankLevel();
