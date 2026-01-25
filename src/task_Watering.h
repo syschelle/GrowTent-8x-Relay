@@ -2,12 +2,35 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <config.h>
+#include <cstdarg>
 
 extern Preferences preferences;
 extern int amountOfWater;
 
 void taskWatering(void *parameter){
+  static UBaseType_t minFree = UINT32_MAX;
+
   for (;;) {
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+    if (freeWords < minFree) minFree = freeWords;
+      static uint32_t last = 0;
+      if (millis() - last > 5000) {
+        last = millis();
+
+        char buf[96];
+        snprintf(
+        buf,
+        sizeof(buf),
+        "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
+        freeWords,
+        freeWords * 4,
+        minFree
+      );
+
+      logPrint(String(buf), true);
+    }
+
     if (irrigationRuns > 0) {
         wTimeLeft = calculateEndtimeWatering();
 
@@ -34,7 +57,7 @@ void taskWatering(void *parameter){
     if (irrigationRuns > 0) {
       tankLevelCm = pingTankLevel(TRIG, ECHO);
       // Log remaining irrigation runs
-      logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigationRuns));
+      logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigationRuns), false);
       delay(minutesToMilliseconds(betweenTasks)); // wait 5 minutes before next run
     } else {
       wTimeLeft = "00:00";

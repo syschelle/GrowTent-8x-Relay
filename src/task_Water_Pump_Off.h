@@ -2,12 +2,35 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <config.h>
+#include <cstdarg>
 
 extern Preferences preferences;
 extern int amountOfWater;
 
 void taskWaterPumpOff(void *parameter){
+  static UBaseType_t minFree = UINT32_MAX;
+
   for (;;) {
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+    if (freeWords < minFree) minFree = freeWords;
+      static uint32_t last = 0;
+      if (millis() - last > 5000) {
+        last = millis();
+
+        char buf[96];
+        snprintf(
+        buf,
+        sizeof(buf),
+        "[TASK][Water_Pump_Off] free=%u words (%u bytes), min=%u words",
+        freeWords,
+        freeWords * 4,
+        minFree
+      );
+
+      logPrint(String(buf), true);
+    }
+
     // Handle relay off timing for irrigation pumps (relays 6,7,8)
     unsigned long now = millis();
 

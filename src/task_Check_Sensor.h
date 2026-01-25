@@ -5,13 +5,36 @@
 #include <Preferences.h>
 #include <Adafruit_BME280.h>
 #include <config.h>
+#include <cstdarg>
 
 extern Preferences preferences;
 extern bool bmeAvailable;
 extern Adafruit_BME280 bme;
 
 void taskCheckBMESensor(void *parameter){
+  static UBaseType_t minFree = UINT32_MAX;
+
   for (;;) {
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+    if (freeWords < minFree) minFree = freeWords;
+      static uint32_t last = 0;
+      if (millis() - last > 5000) {
+        last = millis();
+
+        char buf[96];
+        snprintf(
+        buf,
+        sizeof(buf),
+        "[TASK][Check_Sensor] free=%u words (%u bytes), min=%u words",
+        freeWords,
+        freeWords * 4,
+        minFree
+      );
+
+      logPrint(String(buf), true);
+    }
+
     // Check every MEASURE_INTERVAL the tank level
     unsigned long now = millis();
     if (now - lastMeasureTime >= MEASURE_INTERVAL) {

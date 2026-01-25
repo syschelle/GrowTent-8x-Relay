@@ -4,6 +4,12 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
+// BEGIN Variable definitions
+
+// debug flag default
+bool debugLog = false;
+String debugLogEnabled = "";
+
 // max log lines to weblog
 const size_t LOG_MAX_LINES = 50;
 
@@ -13,6 +19,106 @@ const char* KEY_APPASSWORD = "12345678";
 // WiFi credentials storage
 String ssidName = "";
 String ssidPassword = "";
+bool wifiReady = false;
+
+// Relay Configuration
+#define NUM_RELAYS 8
+const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };
+// track relay output states (internal linkage so header can be included safely)
+static bool relayStates[NUM_RELAYS] = { false };
+// Number of water pumps (relays 6,7,8)
+static const int PUMP_COUNT = 3;
+
+unsigned long relayOffTime[NUM_RELAYS] = {0};
+bool relayActive[NUM_RELAYS] = {false};
+
+// BEGIN Struct definitions
+// ---------- Relay ----------
+struct RelaySchedule {
+  bool enabled = false;
+  int start = 0;
+  int end = 0;
+};
+
+struct RelayGroup {
+  char* name[NUM_RELAYS] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+  RelaySchedule schedule[NUM_RELAYS];
+};
+
+// ---------- Grow / Running ----------
+struct GrowGroup {
+  char startDate[16] = "";
+  char startFlowering[16] = "";
+  char startDrying[16] = "";
+
+  int currentPhase = 1;
+
+  float targetTemperature = 22.0f;
+  float offsetLeafTemperature = -1.5f;
+  float targetVPD = 1.0f;
+
+  int amountOfWater = 20;
+  int irrigation = 500;
+  int timePerTask = 10;
+  int betweenTasks = 5;
+
+  float minTank = 10.0f;
+  float maxTank = 90.0f;
+};
+
+struct ShellyGroup {
+  ShellyDevice main;
+  ShellyDevice heat;
+  ShellyDevice hum;
+  ShellyDevice fan;
+
+  char username[32] = "";
+  char password[32] = "";
+};
+
+// ---------- UI / Box ----------
+struct UIGroup {
+  char boxName[32] = "newGrowTent";
+  char ntpServer[64] = "pool.ntp.org";
+  char tzInfo[64] = "Europe/Berlin";
+
+  char language[4] = "de";
+  char theme[8] = "light";
+  char unit[8] = "metric";
+  char timeFormat[4] = "24h";
+
+  bool ds18b20Enabled = false;
+  char ds18b20Name[32] = "";
+};
+
+// ---------- Notifications ----------
+struct NotifyGroup {
+  bool pushoverEnabled = false;
+  char pushoverAppKey[64] = "";
+  char pushoverUserKey[64] = "";
+  char pushoverDevice[32] = "";
+
+  bool gotifyEnabled = false;
+  char gotifyServer[64] = "";
+  char gotifyToken[64] = "";
+};
+
+// ---------- Debug ----------
+struct DebugGroup {
+  bool enabled = false;
+};
+
+// ---------- Root Settings (verschachtelt) ----------
+struct Settings {
+  DebugGroup debug;
+  RelayGroup relay;
+  GrowGroup grow;
+  ShellyGroup shelly;
+  UIGroup ui;
+  NotifyGroup notify;
+};
+
+extern Settings settings;
 
 struct ShellyValues {
   bool  ok = false;     // API reachable
@@ -111,6 +217,7 @@ String gotifyToken = "";
 static const char* KEY_SSID    = "ssid";
 static const char* KEY_PASS    = "password";
 // namespace for preferences
+static const char* KEY_DEBUG_ENABLED = "dbg";
 static const char* PREF_NS     = "growtent";
 //runningsettings
 static const char* KEY_STARTDATE = "startDate";
@@ -211,16 +318,7 @@ bool DS18B20 = false;
 String DS18B20Enable = "";
 String DS18B20Name = "";
 
-// Relay Configuration
-#define NUM_RELAYS 8
-const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };
-// track relay output states (internal linkage so header can be included safely)
-static bool relayStates[NUM_RELAYS] = { false };
-// Number of water pumps (relays 6,7,8)
-static const int PUMP_COUNT = 3;
 
-unsigned long relayOffTime[NUM_RELAYS] = {0};
-bool relayActive[NUM_RELAYS] = {false};
 
 // Status LED Configuration
 #define STATUS_LED_PIN 23

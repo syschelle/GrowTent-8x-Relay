@@ -539,6 +539,13 @@ const char* htmlPage = R"rawliteral(
         <h1 data-i18n="settings.title">Systemeinstellungen</h1>
 
         <div class="form-group">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webDebug" %DBG_CHECKED%>
+            <span data-i18n="settings.debugEnabled">Debug aktivieren</span>
+          </label>
+        </div>
+
+        <div class="form-group">
           <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
           <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
         </div>

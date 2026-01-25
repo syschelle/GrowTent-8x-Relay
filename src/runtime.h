@@ -7,13 +7,47 @@
 #include <WebServer.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+
+// Include global definitions and functions
+#include <globals.h>
 #include <function.h>
-#include <config.h>
 
 // external DallasTemperature sensor instance (defined in a single .cpp file)
 extern DallasTemperature sensors;
 
 extern WebServer server;
+
+void loadPrefInt(
+  const char* prefKey,
+  int& targetVar,
+  int defaultValue = 0,
+  bool logValue = true,
+  const char* logLabel = nullptr
+);
+void loadPrefFloat(
+  const char* prefKey,
+  float& targetVar,
+  float defaultValue = NAN,
+  bool logValue = true,
+  const char* logLabel = nullptr,
+  uint8_t decimals = 2
+);
+void loadPrefBool(
+  const char* prefKey,
+  bool& targetVar,
+  bool defaultValue = false,
+  bool logValue = true,
+  const char* logLabel = nullptr
+);
+void loadPrefString(
+  const char* prefKey,
+  String& targetVar,
+  const char* defaultValue = "",
+  bool logValue = true,
+  const char* logLabel = nullptr
+);
+
+
 
 extern Preferences preferences;
 extern ShellySettings shelly;
@@ -21,7 +55,7 @@ extern SensorReadings cur;
 extern Targets target;
 extern String readSensorData();
 extern void calculateTimeSince(const String& dateStr, int& daysOut, int& weeksOut);
-extern void logPrint(const String& msg);
+extern void logPrint(const String& msg, bool isDebugLine);
 extern void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd);
 extern void compactLog();
 
@@ -44,6 +78,7 @@ void handleRoot() {
     // Build HTML
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
+    html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
     html.replace("%CONTROLLERNAME%",  boxName);
     } else {
     html = FPSTR(htmlPage);
@@ -252,9 +287,10 @@ void handleRoot() {
 // Read stored preferences
 void readPreferences() {
   preferences.begin(PREF_NS, true);
-  //WIFI
-  ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
-  ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
+  // debug flag
+  loadPrefString(KEY_DEBUG_ENABLED, debugLogEnabled, "", true, "debugEnabled");
+  if (debugLogEnabled) debugLogEnabled = "checked";
+
   // relays
   relayNames[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
   relayNames[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
@@ -262,19 +298,19 @@ void readPreferences() {
   relayNames[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
   relayNames[4] = preferences.isKey(KEY_RELAY_5) ? strdup(preferences.getString(KEY_RELAY_5).c_str()) : strdup("relay 5");
   // running settings
-  startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String();
-  startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String();
-  startDrying = preferences.isKey(KEY_DRYINGDATE) ? preferences.getString(KEY_DRYINGDATE) : String();
-  curPhase = preferences.isKey(KEY_CURRENTPHASE) ? preferences.getInt(KEY_CURRENTPHASE) : 1;
-  targetTemperature = preferences.isKey(KEY_TARGETTEMP) ? preferences.getFloat(KEY_TARGETTEMP) : 22.0;
-  offsetLeafTemperature = preferences.isKey(KEY_LEAFTEMP) ? preferences.getFloat(KEY_LEAFTEMP) : -1.5;
-  targetVPD = preferences.isKey(KEY_TARGETVPD) ? preferences.getFloat(KEY_TARGETVPD) : 1.0;
-  amountOfWater = preferences.isKey(KEY_AMOUNTOFWATER) ? preferences.getInt(KEY_AMOUNTOFWATER) : 20;
-  irrigation = preferences.isKey(KEY_IRRIGATION) ? preferences.getInt(KEY_IRRIGATION) : 500;
-  timePerTask = preferences.isKey(KEY_TIMEPERTASK) ? preferences.getInt(KEY_TIMEPERTASK) : 10;
-  betweenTasks = preferences.isKey(KEY_BETWEENTASKS) ? preferences.getInt(KEY_BETWEENTASKS) : 5;
-  minTank = preferences.isKey(KEY_MINTANK) ? preferences.getFloat(KEY_MINTANK) : 10.0f;
-  maxTank = preferences.isKey(KEY_MAXTANK) ? preferences.getFloat(KEY_MAXTANK) : 90.0f;
+  loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
+  loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
+  loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
+  loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
+  loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
+  loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
+  loadPrefFloat(KEY_TARGETVPD, targetVPD, 1.0f, true, "targetVPD");
+  loadPrefInt(KEY_AMOUNTOFWATER, amountOfWater, 20, true, "amountOfWater");
+  loadPrefInt(KEY_IRRIGATION, irrigation, 500, true, "irrigation");
+  loadPrefInt(KEY_TIMEPERTASK, timePerTask, 10, true, "timePerTask");
+  loadPrefInt(KEY_BETWEENTASKS, betweenTasks, 5, true , "betweenTasks");
+  loadPrefFloat(KEY_MINTANK, minTank, 10.0f, true, "minTank");
+  loadPrefFloat(KEY_MAXTANK, maxTank, 90.0f, true, "maxTank");
 
   // relay schedules
   // Use explicit key names and provide a default value for getBool() to match the Preferences API
@@ -295,53 +331,41 @@ void readPreferences() {
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
 
   // Shelly devices
-  shelly.main.ip   = preferences.getString(KEY_SHMAINIP, "");
-  shelly.main.gen  = preferences.getInt(KEY_SHMAINGEN, 1);
-
-  shelly.heat.ip   = preferences.getString(KEY_SHELLYHEATIP, "");
-  shelly.heat.gen  = preferences.getInt(KEY_SHELLYHEATGEN, 1);
-
-  shelly.hum.ip    = preferences.getString(KEY_SHELLYHUMIP, "");
-  shelly.hum.gen   = preferences.getInt(KEY_SHELLYHUMGEN, 1);
-
-  shelly.fan.ip    = preferences.getString(KEY_SHELLYFANIP, "");
-  shelly.fan.gen   = preferences.getInt(KEY_SHELLYFANGEN, 1);
-
+  loadPrefString(KEY_SHMAINIP, shelly.main.ip, "", true, "Shelly Main IP");
+  loadPrefInt(KEY_SHMAINGEN, shelly.main.gen, 1, true, "Shelly Main Generation");
+  loadPrefString(KEY_SHELLYHEATIP, shelly.heat.ip, "", true, "Shelly Heater IP");
+  loadPrefInt(KEY_SHELLYHEATGEN, shelly.heat.gen, 1, true, "Shelly Heater Generation");
+  loadPrefString(KEY_SHELLYHUMIP, shelly.hum.ip, "", true, "Shelly Humidifier IP");
+  loadPrefInt(KEY_SHELLYHUMGEN, shelly.hum.gen, 1, true, "Shelly Humidifier Generation");
+  loadPrefString(KEY_SHELLYFANIP, shelly.fan.ip, "", true, "Shelly Fan IP");
+  loadPrefInt(KEY_SHELLYFANGEN, shelly.fan.gen, 1, true, "Shelly Fan Generation");
   // Shelly credentials (optional Basic Auth)
-  shelly.username  = preferences.getString(KEY_SHELLYUSERNAME, "");
-  shelly.password  = preferences.getString(KEY_SHELLYPASSWORD, "");
+  loadPrefString(KEY_SHELLYUSERNAME, shelly.username, "", true, "Shelly Username");
+  loadPrefString(KEY_SHELLYPASSWORD, shelly.password, "", false, "Shelly Password");
 
   // settings
-  boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
-  ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
-  tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
-  language = preferences.isKey(KEY_LANG) ? preferences.getString(KEY_LANG) : String("de");
-  theme = preferences.isKey(KEY_THEME) ? preferences.getString(KEY_THEME) : String("light");
-  unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
-  timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
-  DS18B20Enable = preferences.isKey(KEY_DS18B20ENABLE) ? preferences.getString(KEY_DS18B20ENABLE) : String("");
-  if (DS18B20Enable == "checked") DS18B20 = true;
-  DS18B20Name = preferences.isKey(KEY_DS18NAME) ? preferences.getString(KEY_DS18NAME) : String("");
+  loadPrefString(KEY_NAME, boxName, "newGrowTent", true, "boxName");
+  loadPrefString(KEY_NTPSRV, ntpServer, DEFAULT_NTP_SERVER, true, "ntpServer");
+  loadPrefString(KEY_TZINFO, tzInfo, DEFAULT_TZ_INFO, true, "tzInfo");
+  loadPrefString(KEY_LANG, language, "de", true, "language");
+  loadPrefString(KEY_THEME, theme, "light", true, "theme");
+  loadPrefString(KEY_UNIT, unit, "metric", true, "unit");
+  loadPrefString(KEY_TFMT, timeFormat, "24h", true, "timeFormat");
+  loadPrefString(KEY_DS18B20ENABLE, DS18B20Enable, "", true, "DS18B20Enable");
+  if (DS18B20Enable) DS18B20 = "checked";
+  loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
   // notification settings
-  pushoverEnabled = preferences.isKey(KEY_PUSHOVER) ? preferences.getString(KEY_PUSHOVER) : String("");
-  if (pushoverEnabled == "checked") pushoverSent = true;  
-  pushoverAppKey = preferences.isKey(KEY_PUSHOVERAPP) ? preferences.getString(KEY_PUSHOVERAPP) : String("");
-  pushoverUserKey = preferences.isKey(KEY_PUSHOVERUSER) ? preferences.getString(KEY_PUSHOVERUSER) : String("");
-  pushoverDevice = preferences.isKey(KEY_PUSHOVERDEVICE) ? preferences.getString(KEY_PUSHOVERDEVICE) : String("");
-  gotifyEnabled = preferences.isKey(KEY_GOTIFY) ? preferences.getString(KEY_GOTIFY) : String("");
-  if (gotifyEnabled == "checked") gotifySent = true;
-  gotifyServer = preferences.isKey(KEY_GOTIFYSERVER) ? preferences.getString(KEY_GOTIFYSERVER) : String("");
-  gotifyToken = preferences.isKey(KEY_GOTIFYTOKEN) ? preferences.getString(KEY_GOTIFYTOKEN) : String("");
+  loadPrefString(KEY_PUSHOVER, pushoverEnabled, "", true, "pushoverEnabled");
+  if (pushoverEnabled ) pushoverSent = true;
+  loadPrefString(KEY_PUSHOVERAPP, pushoverAppKey, "", true, "pushoverAppKey");
+  loadPrefString(KEY_PUSHOVERUSER, pushoverUserKey, "", true, "pushoverUserKey");
+  loadPrefString(KEY_PUSHOVERDEVICE, pushoverDevice, "", true, "pushoverDevice");
+  loadPrefString(KEY_GOTIFY, gotifyEnabled, "", true, "gotifyEnabled");
+  if (gotifyEnabled ) gotifySent = true;
+  loadPrefString(KEY_GOTIFYSERVER, gotifyServer, "", true, "gotifyServer");
+  loadPrefString(KEY_GOTIFYTOKEN, gotifyToken, "", true, "gotifyToken");
 
   preferences.end();
-  logPrint("[PREF] loading - ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
-           " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo + "curentPhase:" + String(curPhase) +
-           " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
-           " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature +
-           " Shelly Heater Gen: " + String(shelly.heat.gen)  + " Shelly Humidifier Gen: " + String(shelly.hum.gen) + 
-           " targetVPD:" + targetVPD + " curPhase:" + String(curPhase) + " Relayname1:" + relayNames[0] + 
-           " Relayname2:" + relayNames[1] + " Relayname3:" + relayNames[2] + " Relayname4:" + relayNames[3] +
-           " AmountOfWater:" + String(amountOfWater) + " Irrigation:" + String(irrigation));
 }
 
 // Forward declaration so this header can call the function defined later
@@ -373,9 +397,9 @@ void savePrefString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + targetVar);
+    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + targetVar, false);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
   }
 }
 
@@ -389,7 +413,7 @@ String readSensorData() {
     if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
       DS18B20STemperature = dsTemp;
     } else {
-      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
+      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.", true);
     }
   }
   
@@ -421,7 +445,7 @@ String readSensorData() {
       if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(cur.temperatureC) && !isnan(cur.humidityPct) && !isnan(cur.vpdKpa)) {
         appendLog(now, cur.temperatureC, cur.humidityPct, cur.vpdKpa);
         lastLog = now;
-        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
+        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH), false);
       }
 
       // compact hourly
@@ -429,7 +453,7 @@ String readSensorData() {
       if (now - lastCompact >= COMPACT_EVERY_MS) {
         compactLog();  // keeps only the last 48 hours
         lastCompact = now;
-        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
+        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH), false);
       }
 
       // hier könntest du auch deine "addReading(...)" für die 1h-Mittel aufrufen
@@ -520,7 +544,7 @@ String readSensorData() {
   
   // ---- Shelly Main Switch ----
   if (!shelly.main.values.ok) {
-    logPrint("[API] MAIN SWITCH request not ok");
+    logPrint("[API] MAIN SWITCH request not ok", true);
     json += "\"shellyMainSwitchStatus\":false,\n";
     json += "\"shellyMainSwitchPower\":null,\n";
     json += "\"shellyMainSwitchTotalWh\":null,\n";
@@ -540,7 +564,7 @@ String readSensorData() {
 
   // ---- Shelly Heater ----
   if (!shelly.heat.values.ok) {
-    logPrint("[API] HEATER request not ok");
+    logPrint("[API] HEATER request not ok", true);
     json += "\"shellyHeaterStatus\":false,\n";
     json += "\"shellyHeaterPower\":null,\n";
     json += "\"shellyHeaterTotalWh\":null,\n";
@@ -561,7 +585,7 @@ String readSensorData() {
 
   // ---- Shelly Humidifier ----
   if (!shelly.hum.values.ok) {
-    logPrint("[API] HUMIDIFIER request not ok");
+    logPrint("[API] HUMIDIFIER request not ok", true);
     json += "\"shellyHumidifierStatus\":false,\n";
     json += "\"shellyHumidifierPower\":null,\n";
     json += "\"shellyHumidifierTotalWh\":null,\n";
@@ -581,7 +605,7 @@ String readSensorData() {
 
   // ---- Shelly Fan ----
   if (!shelly.fan.values.ok) {
-    logPrint("[SHELLY] FAN request not ok");
+    logPrint("[SHELLY] FAN request not ok", true);
     json += "\"shellyFanStatus\":false,\n";
     json += "\"shellyFanPower\":null,\n";
     json += "\"shellyFanTotalWh\":null,\n";

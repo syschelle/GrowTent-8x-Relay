@@ -7,11 +7,6 @@
 #include <Adafruit_BME280.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <config.h>
-#include <function.h>
-#include <index_html.h>
-#include <style_css.h>
-#include <java_script.h>
 #include <time.h>
 #include <LittleFS.h>
 #include <deque>
@@ -19,12 +14,27 @@
 #include <DallasTemperature.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+// global, functions, html code, js code and css code includes
+#include "globals.h"
+#include <function.h>
+#include <index_html.h>
+#include <style_css.h>
+#include <java_script.h>
 
 // tasks
 #include <task_Check_Sensor.h>
 #include <task_Water_Pump_Off.h>
 #include <task_Watering.h>
 #include <task_CheckShellyStatus.h>
+
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+  Serial.printf("\n*** STACK OVERFLOW in task: %s ***\n", pcTaskName ? pcTaskName : "(null)");
+  Serial.flush();
+  esp_restart();
+}
 
 Preferences preferences;
 WebServer server(80);
@@ -45,6 +55,9 @@ OneWire oneWire(DS18B20_PIN);
 // Definition for the extern declared in runtime.h
 DallasTemperature sensors(&oneWire);
 
+// Task handle for sensor task
+TaskHandle_t sensorTaskHandle = NULL;
+
 //function prototypes
 void handleSave();
 void startSoftAP();
@@ -53,23 +66,18 @@ void handleSave();
 // setup function
 void setup() {
   Serial.begin(115200);
-  
-  logPrint("==== BOOT =====");
-  logPrint("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__));
-  logPrint("[BOOT] Chip MAC: " + WiFi.macAddress());
-  logPrint("[BOOT] Sketch MD5: " + String(ESP.getSketchMD5()));
-  logPrint("[BOOT] Flash size: " + String(ESP.getFlashChipSize()));
-
-
 
   if (!LittleFS.begin(true)) {
-    logPrint("[LITTLEFS] LittleFS mount failed");
+    logPrint("[LITTLEFS] LittleFS mount failed", false);
   } else {
-    logPrint("[LITTLEFS] LittleFS mounted");
+    logPrint("[LITTLEFS] LittleFS mounted", false);
   }
 
-  // read stored preferences
-  readPreferences();
+  preferences.begin(PREF_NS, true);
+  //WIFI
+  loadPrefString(KEY_SSID, ssidName, "", true, "ssidName");
+  loadPrefString(KEY_PASS, ssidPassword, "", false, "ssidPassword");
+  preferences.end();
 
   // If no SSID is stored, start SoftAP mode
   if (ssidName == "") {
@@ -80,22 +88,35 @@ void setup() {
   // Try to connect to stored WiFi credentials
   if (ssidName != "") {
     WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
-    logPrint("[WIFI] Connecting to: ");
-    logPrint(ssidName + " ");
+    logPrint("[WIFI] Connecting to: " + ssidName, true);
 
     unsigned long startAttemptTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
       delay(500);
-      logPrint(".");
+      logPrint(".", true);
     }
 
     // Check connection status
     if (WiFi.status() == WL_CONNECTED) {
-      logPrint("[WIFI] Connected! ");
-      logPrint("[WIFI] IP-Address: " + WiFi.localIP().toString());
+      wifiReady = true;
+
+      logPrint("[WIFI] Connected! ", true);
+      logPrint("[WIFI] IP-Address: " + WiFi.localIP().toString(), true);
+
+      // Log build info
+      logPrint("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__), true);
+      logPrint("[BOOT] Chip MAC: " + WiFi.macAddress(), true);
+      logPrint("[BOOT] Sketch MD5: " + String(ESP.getSketchMD5()), true);
+      logPrint("[BOOT] Flash size: " + String(ESP.getFlashChipSize()), true);
+
+      // Check LittleFS health
+      checkFS();
 
       // Sync NTP time
       syncDateTime();
+
+      // read stored preferences
+      readPreferences();
 
       // Initialize relay outputs (LOW = OFF)
       for (int i = 0; i < NUM_RELAYS; i++) {
@@ -106,11 +127,11 @@ void setup() {
       // I2C bus scan
       Wire.begin(I2C_SDA, I2C_SCL);
       Wire.setClock(100000);
-      logPrint("[I2C] Scanning bus...");
+      logPrint("[I2C] Scanning bus...", true);
       for (uint8_t addr = 1; addr < 127; addr++) {
         Wire.beginTransmission(addr);
         if (Wire.endTransmission() == 0) {
-          logPrint("[I2C] Found device at 0x" + String(addr, HEX));
+          logPrint("[I2C] Found device at 0x" + String(addr, HEX), true);
           delay(2);
         }
       }
@@ -122,9 +143,9 @@ void setup() {
       while (!bmeInit && millis() - startTime < 10000) {
         for (uint8_t i = 0; i < 2 && !bmeInit; i++) {
           uint8_t a = candidates[i];
-          logPrint("[SENSOR] Trying BME280 at 0x" + String(a, HEX) + " ...");
+          logPrint("[SENSOR] Trying BME280 at 0x" + String(a, HEX) + " ...", true);
           if (bme.begin(a, &Wire)) {                 // wichtig: &Wire
-            logPrint("[SENSOR] BME280 initialized at 0x" + String(a, HEX));
+            logPrint("[SENSOR] BME280 initialized at 0x" + String(a, HEX), true);
             bmeAvailable = true;
             readSensorData();
             addReading(cur.extTempC, cur.humidityPct, cur.vpdKpa);
@@ -134,7 +155,7 @@ void setup() {
           }
         }
         if (!bmeInit) {
-          logPrint("[SENSOR] BME280 not found, retrying in 500 ms. Check wiring!");
+          logPrint("[SENSOR] BME280 not found, retrying in 500 ms. Check wiring!", true);
           delay(500);
         }
       }
@@ -142,11 +163,21 @@ void setup() {
       // Initialize DS18B20 sensor
       sensors.begin();
    
+      xTaskCreatePinnedToCore(
+        sensorTask,
+        "sensor",
+        2048,     // Stacksize in WORDS
+        nullptr,
+        1,
+        &sensorTaskHandle,
+        1
+      );
+
       // Create a task to turn off water pumps after 10 seconds
       xTaskCreatePinnedToCore(
         taskWaterPumpOff,                       // Task function
         "Turn off water pumps after 10s",       // Task name
-        4096,                                   // Stack size
+        2048,                                   // Stack size
         NULL,                                   // Task input parameters
         1,                                      // Task priority, be careful when changing this
         NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
@@ -157,7 +188,7 @@ void setup() {
       xTaskCreatePinnedToCore(
         taskWatering,                           // Task function
         "Handle watering based on schedule",    // Task name
-        8192,                                   // Stack size
+        2048,                                   // Stack size
         NULL,                                   // Task input parameters
         1,                                      // Task priority, be careful when changing this
         NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
@@ -169,14 +200,14 @@ void setup() {
         xTaskCreatePinnedToCore(
           taskCheckBMESensor,                     // Task function
           "Read Values of BME280 every 10s",      // Task name
-          8192,                                   // Stack size
+          2048,                                   // Stack size
           NULL,                                   // Task input parameters
           1,                                      // Task priority, be careful when changing this
           NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
           1                                       // Core to run the task on
         );
       } else {
-        logPrint("[TASK] Skipping task to read sensor data because sensor is not available.");
+        logPrint("[TASK] Skipping task to read sensor data because sensor is not available.", true);
       }
 
       xTaskCreatePinnedToCore(
@@ -191,7 +222,7 @@ void setup() {
 
     } else {
       // if not connected, start SoftAP mode
-      logPrint("[WIFI] Failed to connect. Starting SoftAP mode...");
+      logPrint("[WIFI] Failed to connect. Starting SoftAP mode...", false);
       startSoftAP();
     }
   }
@@ -294,7 +325,7 @@ void setup() {
 
   // start webserver
   server.begin();
-  logPrint("[APP] Web server started");
+  logPrint("[APP] Web server started", false);
 
   // Initial Shelly device status fetch
   shelly.heat.values = getShellyValues(shelly.heat, 0);
@@ -313,7 +344,7 @@ void loop() {
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) {
     if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
-      logPrint("Performing daily NTP sync...");
+      logPrint("Performing daily NTP sync...", false);
       configTzTime(tzInfo.c_str(), ntpServer.c_str());
       lastSyncDay = timeinfo.tm_mday;
     }

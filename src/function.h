@@ -27,6 +27,9 @@
 #define DS18B20_PIN 4
 #endif
 
+// debug flag
+extern String debugLogEnabled;
+
 // Declare OneWire + DallasTemperature objects (defined in function.cpp to avoid multiple/conflicting definitions)
 extern OneWire oneWire;
 extern DallasTemperature sensors;
@@ -40,15 +43,75 @@ extern volatile float DS18B20STemperature;
 extern unsigned long relayOffTime[];
 extern bool relayActive[];
 
-// log buffer to store recent log lines
-void logPrint(const String& msg) {
-  // Output serially
-  Serial.println(msg);
+String getTimeString() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "--:--:--";
+  }
 
+  char buf[9];
+  snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
+           timeinfo.tm_hour,
+           timeinfo.tm_min,
+           timeinfo.tm_sec);
+  return String(buf);
+}
+
+// log buffer to store recent log lines
+void logPrint(const String& msg, bool isDebugLine) {
+  String line;
+
+  // Prepend timestamp
+  if (isDebugLine) {
+    line = getTimeString() + " [DEBUG] " + msg;
+  } else {
+    line = getTimeString() + " [LOG]   " + msg;
+  }
+
+  // Output serially
+  Serial.println(line);
   // Write to the weblog buffer
-  logBuffer.push_back(msg);
+  logBuffer.push_back(line);
+  
+  // If it's a debug line and debugging is disabled, skip Web logging
+  if (isDebugLine && !debugLogEnabled) return;
+
   if (logBuffer.size() > LOG_MAX_LINES) {
     logBuffer.pop_front();  // Remove old rows if exceeding max lines logBuffer.size()
+  }
+}
+
+bool checkFS() {
+  // Info abfragen (geht nur wenn gemountet)
+  size_t total = LittleFS.totalBytes();
+  size_t used  = LittleFS.usedBytes();
+
+  if (total == 0) {
+    logPrint("[LITTLEFS][ERROR] totalBytes=0 (not mounted?)", true);
+    return false;
+  }
+
+  // Test: Root existiert / Datei kann geöffnet werden
+  File f = LittleFS.open("/.health", FILE_WRITE);
+  if (!f) {
+    logPrint("[LITTLEFS][ERROR] cannot open /.health", true);
+    return false;
+  }
+  f.println("ok");
+  f.close();
+
+  logPrint("[LITTLEFS] OK total=" + String(total) + " used=" + String(used), true);
+  return true;
+}
+
+void sensorTask(void* pvParameters) {
+  for (;;) {
+    // ... dein Task-Code ...
+
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+    logPrint("[TASK][sensor] free stack: " + String(freeWords) + " words (" + String(freeWords * 4) + " bytes)", true);
+
+    vTaskDelay(pdMS_TO_TICKS(5000));
   }
 }
 
@@ -105,9 +168,9 @@ void savePrefInt(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar));
+    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar), false);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
   }
 }
 
@@ -129,9 +192,9 @@ void savePrefFloat(
 
   if (logValue) {
     logPrint("[PREFERENCES] " + String(logLabel) +
-             " = " + String(targetVar, 2));
+             " = " + String(targetVar, 2), false);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated", false);
   }
 }
 
@@ -156,9 +219,84 @@ void savePrefBool(
 
   if (logValue) {
     logPrint("[PREFERENCES save] " + String(logLabel) +
-             " = " + String(targetVar ? "true" : "false"));
+             " = " + String(targetVar ? "true" : "false"), false);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
+  }
+}
+
+void loadPrefInt(
+  const char* prefKey,
+  int& targetVar,
+  int defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getInt(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar), false);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+  }
+}
+
+void loadPrefFloat(
+  const char* prefKey,
+  float& targetVar,
+  float defaultValue,
+  bool logValue,
+  const char* logLabel,
+  uint8_t decimals
+) {
+  targetVar = preferences.getFloat(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.*f", decimals, targetVar);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(buf), false);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+  }
+}
+
+void loadPrefBool(
+  const char* prefKey,
+  bool& targetVar,
+  bool defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getBool(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"), false);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+  }
+}
+
+void loadPrefString(
+  const char* prefKey,
+  String& targetVar,
+  const char* defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getString(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + targetVar, false);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
   }
 }
 
@@ -167,7 +305,7 @@ void handleSaveRunsettings() {
   // Only call begin() once — calling it twice can cause writes to fail!
   if (!preferences.begin(PREF_NS, false)) {
     logPrint("[PREF][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
+             "Check that PREF_NS length <= 15 characters.", false);
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
@@ -260,9 +398,9 @@ void savePrefStringToCString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v);
+    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v, false);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated", false);
   }
 }
 
@@ -272,11 +410,12 @@ void handleSaveSettings() {
   // Only call begin() once — calling it twice can cause writes to fail!
   if (!preferences.begin(PREF_NS, false)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
+             "Check that PREF_NS length <= 15 characters.", false);
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
+  savePrefString("webDebugEnabled", KEY_DEBUG_ENABLED, debugLogEnabled, true, "Debug Enabled");
   savePrefString("webBoxName", KEY_NAME, boxName, true, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
@@ -305,7 +444,7 @@ void handleSaveSettings() {
 void handleSaveMessageSettings() {
   if (!preferences.begin(PREF_NS, false)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
+             "Check that PREF_NS length <= 15 characters.", false);
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
@@ -325,7 +464,7 @@ void handleSaveMessageSettings() {
   } else {
     gotifyEnabled = "";
   }
-  logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled));
+  logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled), false);
   preferences.putString(KEY_GOTIFY, gotifyEnabled);
 
   savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, true, "Gotify Server URL");
@@ -389,7 +528,7 @@ void handleFactoryReset() {
 // NTP sync
 void syncDateTime() {
   // syncing NTP time
-  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo);
+  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo, false);
   configTzTime(tzInfo.c_str(), ntpServer.c_str());  // Synchronizing ESP32 system time with NTP
   if (getLocalTime(&local, 10000)) { // Try to synchronize up to 10s
     // set actual date in global variable actualDate
@@ -398,9 +537,9 @@ void syncDateTime() {
     lastSyncDay = local.tm_mday;
     char buf[64];
     strftime(buf, sizeof(buf), "now: %d.%m.%y  Zeit: %H:%M:%S", &local);
-    logPrint(String("[DATETIME] ") + buf);  // Format date print output
+    logPrint(String("[DATETIME] ") + buf, false);  // Format date print output
   } else {
-    logPrint("[DATETIME] Failed to obtain time");
+    logPrint("[DATETIME] Failed to obtain time", false);
   }
 }
 
@@ -420,7 +559,7 @@ void calculateTimeSince(const String& startDate, int &days, int &weeks) {
   days = (diffSec / 86400) + 1;
   weeks = (days / 7) + 1;
 
-  //logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
+  logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"), true);
 }
 
 // Convert minutes to milliseconds (int return type)
@@ -438,7 +577,7 @@ int secondsToMilliseconds(int seconds) {
 void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd) {
   File f = LittleFS.open(LOG_PATH, FILE_APPEND);
   if (!f) {
-    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH));
+    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH), false);
     return;
   }
 
@@ -590,7 +729,7 @@ static void handleHistory() {
   // 1. Datei öffnen und erst mal zählen (wie viele im Zeitraum?)
   auto f = LittleFS.open(LOG_PATH, FILE_READ);
   if (!f) { server.send(200, "application/json", "[]"); 
-    logPrint(String("[LITTLEFS]: ") + LOG_PATH + " open failed!");
+    logPrint(String("[LITTLEFS]: ") + LOG_PATH + " open failed!", false);
     return; 
   }
 
@@ -673,7 +812,7 @@ static void handleDeleteLog() {
   if (LittleFS.exists(LOG_PATH)) {
     LittleFS.remove(LOG_PATH);
     server.send(200, "text/html", "<html><body>Gel&ouml;scht <a href=\"/\">Back</a></body></html>");
-    logPrint("[WEB] CSV deleted: " + String(LOG_PATH));
+    logPrint("[WEB] CSV deleted: " + String(LOG_PATH), false);
   } else {
     server.send(404, "text/html", "<html><body>No CSV found. <a href=\"/\">Back</a></body></html>");
   }
@@ -745,7 +884,7 @@ void handleStartWatering() {
     float wateringTask = wateringSecond * timePerTask;
     irrigationRuns = wateringTask / amountOfWater;
 
-    logPrint("[IRRIGATION] Starting watering: " + String(irrigation) + " ml in " + String(irrigationRuns) + " runs of " + String(amountOfWater) + " ml each.");
+    logPrint("[IRRIGATION] Starting watering: " + String(irrigation) + " ml in " + String(irrigationRuns) + " runs of " + String(amountOfWater) + " ml each.", false);
 
     if (language == "de") {
       sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
@@ -757,7 +896,7 @@ void handleStartWatering() {
     server.send(303);
   } else {
     irrigationRuns > 0;
-    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
+    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.", false);
     server.sendHeader("Location", "/");
     server.send(303);
   }
@@ -773,14 +912,14 @@ float calculateTankPercent(float current, float minTank, float maxTank) {
 void readTankLevel() {
   tankLevelCm = pingTankLevel(TRIG, ECHO);
   if (!isnan(tankLevelCm)) {
-    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm");
+    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm", false);
     server.sendHeader("Location", "/");
     server.send(303);
     if (maxTank == 0 || maxTank == minTank) return;
     tankLevel = calculateTankPercent(tankLevelCm, minTank, maxTank);
-    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %");
+    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %", false);
   } else {
-    logPrint("[TANK LEVEL] Error reading tank level.");
+    logPrint("[TANK LEVEL] Error reading tank level.", false);
     server.sendHeader("Location", "/");
     server.send(303);
   }
@@ -793,7 +932,7 @@ String calculateEndtimeWatering() {
   unsigned long hours = totalMinutes / 60;
   unsigned long minutes = totalMinutes % 60;
 
-  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.");
+  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.", false);
 
   return String(hours) + ":" + String(minutes);
 }
@@ -823,12 +962,12 @@ bool sendPushover(const String& message, const String& title) {
     String resp = https.getString();
     https.end();
 
-    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code));
-    logPrint("[MESSAGE] " + resp);
+    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code), true);
+    logPrint("[MESSAGE] " + resp, true);
 
     return (code == 200);
   } else {
-    logPrint("[MESSAGE] Pushover notification not sent: disabled");
+    logPrint("[MESSAGE] Pushover notification not sent: disabled", true);
     return false;
   }
 }
@@ -858,11 +997,11 @@ bool sendGotify(const String& msg, const String& title, int priority) {
     String resp = http.getString();
     http.end();
 
-    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code));
-    logPrint("[MESSAGE] " + resp);
+    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code), true);
+    logPrint("[MESSAGE] " + resp, true);
     return (code >= 200 && code < 300);
   } else {
-    logPrint("[MESSAGE] Gotify notification not sent: disabled");
+    logPrint("[MESSAGE] Gotify notification not sent: disabled", true);
     return false;
   }
   
@@ -1222,22 +1361,21 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
   );
 
   if (!ok) {
-    logPrint("[SHELLY] request failed");
+    logPrint("[SHELLY] request failed", true);
     return v;
   }
 
-  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
-
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()), true);
   if (code != 200 || body.length() == 0) {
-    logPrint("[SHELLY] Invalid response");
+    logPrint("[SHELLY] Invalid response", true);
     return v;
   }
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
-    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()));
-    logPrint("[SHELLY] Body (first 200): " + body.substring(0, 200));
+    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()), true);
+    logPrint("[SHELLY] Body (first 200): " + body.substring(0, 200), true);
     return v;
   }
 
@@ -1281,13 +1419,13 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     path = "/rpc/Switch.Set?id=" + String(switchId) + "&on=" + String(on ? "true" : "false");
   }
 
-  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path);
+  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path, true);
 
   int code = -1;
   String body;
 
   bool ok = httpGetWithDigestAutoAuth(host, port, path, shelly.username, shelly.password, code, body);
-  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()), true);
   return ok && (code == 200);
 }
 
