@@ -84,6 +84,10 @@ static void handleApiHistory() {
 
   server.sendContent("{\"n\":" + String(n) + ",\"intervalSec\":10,");
 
+  // ---- targets ----
+  server.sendContent("\"targetTempC\":" + sendNumOrNull(targetTemperature) + ",");
+  server.sendContent("\"targetVpdKpa\":" + sendNumOrNull(targetVPD) + ",");
+
   // temps
   server.sendContent("\"temp\":[");
   for (int i = 0; i < n; i++) {

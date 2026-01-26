@@ -1346,77 +1346,104 @@ static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const S
 }
 
 // =======================
+// SIMPLE IP VALIDATION
+// =======================
+static bool hasValidIPv4(const String& ip) {
+  IPAddress tmp;
+  return ip.length() > 0 && tmp.fromString(ip);
+}
+
+// =======================
+// SIMPLE HTTP GET FOR GEN1 DEVICES (BASIC AUTH)
+// =======================
+static bool httpGetGen1(
+  const String& host, int port, const String& path,
+  const String& user, const String& pass,
+  int& code, String& body
+) {
+  WiFiClient client;
+  HTTPClient http;
+
+  http.setTimeout(2000); // Gen1 braucht manchmal etwas länger
+  http.setReuse(false);
+
+  String url = "http://" + host + ":" + String(port) + path;
+
+  if (!http.begin(client, url)) {
+    code = -1;
+    return false;
+  }
+
+  // Nur wenn user gesetzt ist (sonst schickst du leere Auth-Header)
+  if (user.length() > 0) {
+    http.setAuthorization(user.c_str(), pass.c_str());  // Basic Auth
+  }
+
+  code = http.GET();
+  if (code > 0) body = http.getString();
+
+  http.end();
+  return (code >= 200 && code < 300);
+}
+
+// =======================
 // MAIN: GET VALUES
 // =======================
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
   ShellyValues v; // default ok=false
 
-  // --- Host / Path  ---
-  String host = dev.ip;
-
-  // Achtung: ppath depends on gen/child – here only a placeholder:
-  // Gen1: /status or /relay/0
-  // Gen2/3: /rpc/Switch.GetStatus?id=0  (oder je nach Device)
-  String path;
-  if (dev.gen == 1) {
-    path = "/status"; // gen1: all values in /status
-  } else {
-    path = "/rpc/Switch.GetStatus?id=" + String(switchId);
+  // IP prüfen
+  if (!hasValidIPv4(dev.ip)) {
+    logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'", true);
+    return v;
   }
+
+  String path = (dev.gen == 1)
+    ? "/status"
+    : ("/rpc/Switch.GetStatus?id=" + String(switchId));
 
   int code = 0;
   String body;
+  bool ok = false;
 
-  // Gen1 often uses Basic or simple auth; Gen2/3 typically uses Digest
-  bool ok = httpGetWithDigestAutoAuth(
-    host, port, path,
-    settings.shelly.username, settings.shelly.password,
-    code, body
-  );
+  if (dev.gen == 1) {
+    ok = httpGetGen1(dev.ip, port, path,
+                    settings.shelly.username, settings.shelly.password,
+                    code, body);
+  } else {
+    ok = httpGetWithDigestAutoAuth(dev.ip, port, path,
+                                  settings.shelly.username, settings.shelly.password,
+                                  code, body);
+  }
 
   if (!ok) {
-    logPrint("[SHELLY] request failed", true);
+    logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path, true);
+    if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200), true);
     return v;
   }
 
-  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()), true);
-  if (code != 200 || body.length() == 0) {
-    logPrint("[SHELLY] Invalid response", true);
-    return v;
-  }
-
+  // JSON parsen (Gen1 /status kann etwas größer sein)
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
     logPrint("[SHELLY] JSON parse error: " + String(err.c_str()), true);
-    logPrint("[SHELLY] Body (first 200): " + body.substring(0, 200), true);
     return v;
   }
 
-  // Parse values
   if (dev.gen == 1) {
-    // Gen1 /status Schema:
-    // relays[0].ison
-    // meters[0].power
-    // meters[0].total (Wh)
+    // Plug S Gen1: relays[0].ison, meters[0].power, meters[0].total
     v.isOn     = doc["relays"][switchId]["ison"] | false;
     v.powerW   = doc["meters"][switchId]["power"] | NAN;
     v.energyWh = doc["meters"][switchId]["total"] | NAN;
-
-    // (Gen1 liefert oft voltage/current nicht in /status -> bleiben NAN)
   } else {
-    // Gen2/3 RPC Switch.GetStatus schema:
-    // output, apower, voltage, current, aenergy.total
     v.isOn     = doc["output"] | false;
     v.powerW   = doc["apower"] | NAN;
     v.energyWh = doc["aenergy"]["total"] | NAN;
   }
 
   v.ok = true;
-
-  // Update device values
   dev.values = v;
-
   return v;
 }
 

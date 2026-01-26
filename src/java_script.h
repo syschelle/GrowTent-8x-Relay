@@ -838,73 +838,92 @@ window.addEventListener('DOMContentLoaded', () => {
     return { min, max };
   }
 
-  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals){
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
+  // Draws a series of data into a canvas element
+  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals, targetValue){
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
 
-    // hide if no DS18B20 chart is relevant
-    if (canvasId === 'chartWater') {
-      const card = document.getElementById('chartWaterCard');
-      if (card && (!window.DS18B20Enabled || window.DS18B20Enabled === '0')) {
-        // if backend disables DS18B20, just hide the tile
-        // (we don't know that reliably here, so we only hide when the label is empty later)
-      }
-    }
+  const {min, max} = computeMinMax(arr);
 
-    const {min, max} = computeMinMax(arr);
-    const minEl = document.getElementById(minSpanId);
-    const maxEl = document.getElementById(maxSpanId);
-    if (minEl) minEl.textContent = (min === null) ? '–' : min.toFixed(decimals);
-    if (maxEl) maxEl.textContent = (max === null) ? '–' : max.toFixed(decimals);
-
-    const ctx = canvasHiDPI(canvas);
-    const css = getComputedStyle(document.documentElement);
-    const stroke = (css.getPropertyValue('--link') || css.getPropertyValue('--text') || '#888').trim();
-    ctx.strokeStyle = stroke;
-    const w = canvas.clientWidth || canvas.width;
-    const h = canvas.clientHeight || canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    // background grid
-    ctx.globalAlpha = 0.25;
-    ctx.beginPath();
-    for (let i = 1; i <= 3; i++) {
-      const y = (h * i) / 4;
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-    }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    if (min === null || max === null || arr.length < 2) return;
-
-    const pad = 6;
-    const innerW = w - pad * 2;
-    const innerH = h - pad * 2;
-    const n = arr.length;
-
-    const xStep = innerW / Math.max(1, n - 1);
-    const yScale = innerH / (max - min);
-
-    ctx.beginPath();
-    let started = false;
-    for (let i = 0; i < n; i++) {
-      const v = arr[i];
-      if (v === null || typeof v !== 'number' || !isFinite(v)) {
-        started = false;
-        continue;
-      }
-      const x = pad + xStep * i;
-      const y = pad + (max - v) * yScale;
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
+  // --- optional: Sollwert in Skala einbeziehen, damit Linie nicht "außerhalb" liegt ---
+  let min2 = min, max2 = max;
+  const tOk = (typeof targetValue === 'number' && isFinite(targetValue));
+  if (tOk && min2 !== null && max2 !== null) {
+    if (targetValue < min2) min2 = targetValue;
+    if (targetValue > max2) max2 = targetValue;
+    if (min2 === max2) { min2 -= 0.5; max2 += 0.5; }
   }
+
+  const minEl = document.getElementById(minSpanId);
+  const maxEl = document.getElementById(maxSpanId);
+  if (minEl) minEl.textContent = (min2 === null) ? '–' : min2.toFixed(decimals);
+  if (maxEl) maxEl.textContent = (max2 === null) ? '–' : max2.toFixed(decimals);
+
+  const ctx = canvasHiDPI(canvas);
+  const css = getComputedStyle(document.documentElement);
+  const stroke = (css.getPropertyValue('--link') || css.getPropertyValue('--text') || '#888').trim();
+  ctx.strokeStyle = stroke;
+
+  const w = canvas.clientWidth || canvas.width;
+  const h = canvas.clientHeight || canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // background grid
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  for (let i = 1; i <= 3; i++) {
+    const y = (h * i) / 4;
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (min2 === null || max2 === null || arr.length < 2) return;
+
+  const pad = 6;
+  const innerW = w - pad * 2;
+  const innerH = h - pad * 2;
+  const n = arr.length;
+
+  const xStep = innerW / Math.max(1, n - 1);
+  const yScale = innerH / (max2 - min2);
+
+  // ---- Soll-Linie (gestrichelt) ----
+  if (tOk) {
+    const yT = pad + (max2 - targetValue) * yScale;
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, yT);
+    ctx.lineTo(w - pad, yT);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Datenlinie
+  ctx.beginPath();
+  let started = false;
+  for (let i = 0; i < n; i++) {
+    const v = arr[i];
+    if (v === null || typeof v !== 'number' || !isFinite(v)) {
+      started = false;
+      continue;
+    }
+    const x = pad + xStep * i;
+    const y = pad + (max2 - v) * yScale;
+    if (!started) {
+      ctx.moveTo(x, y);
+      started = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+}
+
 
   window.updateHistoryCharts = async function(force){
     try {
@@ -914,10 +933,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const d = await r.json();
       if (!d || !Array.isArray(d.temp)) return;
 
-      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1);
-      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   0);
-      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2);
-      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1);
+      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1, d.targetTempC);
+      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   0, null);
+      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2, d.targetVpdKpa);
+      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1, null);
     } catch (e) {
       console.warn('history fetch failed', e);
     }
