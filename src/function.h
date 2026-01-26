@@ -60,24 +60,12 @@ String getTimeString() {
 }
 
 // log buffer to store recent log lines
-void logPrint(const String& msg, bool isDebugLine) {
-  String line;
-
-  // Prepend timestamp
-  if (isDebugLine) {
-    line = getTimeString() + " [DEBUG] " + msg;
-  } else {
-    line = getTimeString() + " [LOG]   " + msg;
-  }
-
+void logPrint(const String& msg) {
   // Output serially
-  Serial.println(line);
-  // Write to the weblog buffer
-  logBuffer.push_back(line);
-  
-  // If it's a debug line and debugging is disabled, skip Web logging
-  if (isDebugLine && !debugLogEnabled) return;
+  Serial.println(msg);
 
+  // Write to the weblog buffer
+  logBuffer.push_back(msg);
   if (logBuffer.size() > LOG_MAX_LINES) {
     logBuffer.pop_front();  // Remove old rows if exceeding max lines logBuffer.size()
   }
@@ -89,20 +77,20 @@ bool checkFS() {
   size_t used  = LittleFS.usedBytes();
 
   if (total == 0) {
-    logPrint("[LITTLEFS][ERROR] totalBytes=0 (not mounted?)", true);
+    logPrint("[LITTLEFS][ERROR] totalBytes=0 (not mounted?)");
     return false;
   }
 
   // Test: Root existiert / Datei kann geöffnet werden
   File f = LittleFS.open("/.health", FILE_WRITE);
   if (!f) {
-    logPrint("[LITTLEFS][ERROR] cannot open /.health", true);
+    logPrint("[LITTLEFS][ERROR] cannot open /.health");
     return false;
   }
   f.println("ok");
   f.close();
 
-  logPrint("[LITTLEFS] OK total=" + String(total) + " used=" + String(used), true);
+  logPrint("[LITTLEFS] OK total=" + String(total) + " used=" + String(used));
   return true;
 }
 
@@ -111,7 +99,7 @@ void sensorTask(void* pvParameters) {
     // ... dein Task-Code ...
 
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    logPrint("[TASK][sensor] free stack: " + String(freeWords) + " words (" + String(freeWords * 4) + " bytes)", true);
+    logPrint("[TASK][sensor] free stack: " + String(freeWords) + " words (" + String(freeWords * 4) + " bytes)");
 
     vTaskDelay(pdMS_TO_TICKS(5000));
   }
@@ -170,9 +158,9 @@ void savePrefInt(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar), false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -194,9 +182,9 @@ void savePrefFloat(
 
   if (logValue) {
     logPrint("[PREFERENCES] " + String(logLabel) +
-             " = " + String(targetVar, 2), false);
+             " = " + String(targetVar, 2));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
   }
 }
 
@@ -221,9 +209,9 @@ void savePrefBool(
 
   if (logValue) {
     logPrint("[PREFERENCES save] " + String(logLabel) +
-             " = " + String(targetVar ? "true" : "false"), false);
+             " = " + String(targetVar ? "true" : "false"));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -239,9 +227,9 @@ void loadPrefInt(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar), false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -260,9 +248,9 @@ void loadPrefFloat(
   if (logValue) {
     char buf[32];
     snprintf(buf, sizeof(buf), "%.*f", decimals, targetVar);
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(buf), false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(buf));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -278,9 +266,9 @@ void loadPrefBool(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"), false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -296,9 +284,9 @@ void loadPrefString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + targetVar, false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + targetVar);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -307,25 +295,25 @@ void handleSaveRunsettings() {
   // Only call begin() once — calling it twice can cause writes to fail!
   if (!preferences.begin(PREF_NS, false)) {
     logPrint("[PREF][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.", false);
+             "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
   // Save all run settings
-  savePrefString("webStartDate", KEY_STARTDATE, startDate, false, "Grow Start Date");
-  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, false, "Flowering Start Date");
-  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, false, "Drying Start Date");
-  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, false, "Current Phase");
-  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, false, "Target Temperature");
-  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, false, "Target VPD");
-  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, false, "Leaf Temperature Offset");
-  savePrefInt("webTimePerTask", KEY_TIMEPERTASK, timePerTask, false, "Time Per Task");
-  savePrefInt("webBetweenTasks", KEY_BETWEENTASKS, betweenTasks, false, "Pause Between Tasks");
-  savePrefInt("webAmountOfWater", KEY_AMOUNTOFWATER, amountOfWater, false, "Amount Of Water");
-  savePrefInt("webIrrigation", KEY_IRRIGATION, irrigation, false, "Irrigation Interval");
-  savePrefFloat("webMinTank", KEY_MINTANK, minTank, false, "Min Tank Level");
-  savePrefFloat("webMaxTank", KEY_MAXTANK, maxTank, false, "Max Tank Level");
+  savePrefString("webStartDate", KEY_STARTDATE, startDate, "Grow Start Date");
+  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, "Flowering Start Date");
+  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, "Drying Start Date");
+  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, "Current Phase");
+  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, "Target Temperature");
+  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, "Target VPD");
+  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, "Leaf Temperature Offset");
+  savePrefInt("webTimePerTask", KEY_TIMEPERTASK, timePerTask, "Time Per Task");
+  savePrefInt("webBetweenTasks", KEY_BETWEENTASKS, betweenTasks, "Pause Between Tasks");
+  savePrefInt("webAmountOfWater", KEY_AMOUNTOFWATER, amountOfWater, "Amount Of Water");
+  savePrefInt("webIrrigation", KEY_IRRIGATION, irrigation, "Irrigation Interval");
+  savePrefFloat("webMinTank", KEY_MINTANK, minTank, "Min Tank Level");
+  savePrefFloat("webMaxTank", KEY_MAXTANK, maxTank, "Max Tank Level");
 
   preferences.end(); // always close Preferences handle
 
@@ -360,25 +348,25 @@ void handleSaveShellySettings() {
 
   // keep Settings as source of truth
   normalizeIPv4(settings.shelly.main.ip);
-  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   settings.shelly.main.ip,   true, "Main IP");
-  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  settings.shelly.main.gen,  true, "Main Gen");
+  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   settings.shelly.main.ip,   "Main IP");
+  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  settings.shelly.main.gen,  "Main Gen");
 
   // --- HEATER ---
   normalizeIPv4(settings.shelly.heat.ip);
-  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   settings.shelly.heat.ip,   true, "Heat IP");
-  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  settings.shelly.heat.gen,  true, "Heat Gen");
+  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   settings.shelly.heat.ip,   "Heat IP");
+  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  settings.shelly.heat.gen,  "Heat Gen");
 
   // --- HUM ---
   normalizeIPv4(settings.shelly.hum.ip);
-  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    settings.shelly.hum.ip,   true, "Hum IP");
-  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   settings.shelly.hum.gen,  true, "Hum Gen");
+  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    settings.shelly.hum.ip,   "Hum IP");
+  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   settings.shelly.hum.gen,  "Hum Gen");
   // --- FAN ---
   normalizeIPv4(settings.shelly.fan.ip);
-  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    settings.shelly.fan.ip,   true, "Fan IP");
-  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   settings.shelly.fan.gen,  true, "Fan Gen");
+  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    settings.shelly.fan.ip,   "Fan IP");
+  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   settings.shelly.fan.gen,  "Fan Gen");
   // --- AUTH ---
-  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, settings.shelly.username, false, "User");
-  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, false, "Pass");
+  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, settings.shelly.username, "User");
+  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, "Pass");
 
   preferences.end();
 
@@ -412,9 +400,9 @@ void savePrefStringToCString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v, false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
   }
 }
 
@@ -422,15 +410,15 @@ void savePrefStringToCString(
 void handleSaveSettings() {
   // Open the Preferences namespace with write access (readOnly = false)
   // Only call begin() once — calling it twice can cause writes to fail!
-  if (!preferences.begin(PREF_NS, false)) {
+  if (!preferences.begin(PREF_NS)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.", false);
+             "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
-  savePrefString("webDebugEnabled", KEY_DEBUG_ENABLED, debugLogEnabled, true, "Debug Enabled");
-  savePrefString("webBoxName", KEY_NAME, boxName, true, "Boxname");
+  savePrefString("webDebugEnabled", KEY_DEBUG_ENABLED, debugLogEnabled, "Debug Enabled");
+  savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
   savePrefString("webLanguage", KEY_LANG, language);
@@ -438,13 +426,13 @@ void handleSaveSettings() {
   savePrefString("webTimeFormat", KEY_TFMT, timeFormat);
   savePrefString("webTempUnit", KEY_UNIT, unit);
   savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
-  savePrefBool("webDS18B20Enable", KEY_DS18B20ENABLE, DS18B20, true, "DS18B20 Enable");
+  savePrefBool("webDS18B20Enable", KEY_DS18B20ENABLE, DS18B20, "DS18B20 Enable");
   savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
-  savePrefString("webRelayName1", KEY_RELAY_1, relayNames[0], true,"Relay 1 Name");
-  savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], true,"Relay 2 Name");
-  savePrefString("webRelayName3", KEY_RELAY_3, relayNames[2], true,"Relay 3 Name");
-  savePrefString("webRelayName4", KEY_RELAY_4, relayNames[3], true,"Relay 4 Name");
-  savePrefString("webRelayName5", KEY_RELAY_5, relayNames[4], true,"Relay 5 Name");
+  savePrefString("webRelayName1", KEY_RELAY_1, relayNames[0], "Relay 1 Name");
+  savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], "Relay 2 Name");
+  savePrefString("webRelayName3", KEY_RELAY_3, relayNames[2], "Relay 3 Name");
+  savePrefString("webRelayName4", KEY_RELAY_4, relayNames[3], "Relay 4 Name");
+  savePrefString("webRelayName5", KEY_RELAY_5, relayNames[4], "Relay 5 Name");
 
   preferences.end(); // always close Preferences handle
 
@@ -456,9 +444,9 @@ void handleSaveSettings() {
 }
 
 void handleSaveMessageSettings() {
-  if (!preferences.begin(PREF_NS, false)) {
+  if (!preferences.begin(PREF_NS)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.", false);
+             "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
@@ -469,20 +457,20 @@ void handleSaveMessageSettings() {
     pushoverEnabled = "";
   }
 
-  savePrefString("webPushoverUserKey", KEY_PUSHOVERUSER, pushoverUserKey, false, "Pushover User Key");
-  savePrefString("webPushoverAppKey", KEY_PUSHOVERAPP, pushoverAppKey, false, "Pushover App Key");
-  savePrefString("webPushoverDevice", KEY_PUSHOVERDEVICE, pushoverDevice, true, "Pushover Device");
+  savePrefString("webPushoverUserKey", KEY_PUSHOVERUSER, pushoverUserKey, "Pushover User Key");
+  savePrefString("webPushoverAppKey", KEY_PUSHOVERAPP, pushoverAppKey, "Pushover App Key");
+  savePrefString("webPushoverDevice", KEY_PUSHOVERDEVICE, pushoverDevice, "Pushover Device");
   
   if (server.arg("webGotifyEnabled") == "on") {
     gotifyEnabled = "checked";
   } else {
     gotifyEnabled = "";
   }
-  logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled), false);
+  logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled));
   preferences.putString(KEY_GOTIFY, gotifyEnabled);
 
-  savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, true, "Gotify Server URL");
-  savePrefString("webGotifyToken", KEY_GOTIFYTOKEN, gotifyToken, false, "Gotify Token");
+  savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, "Gotify Server URL");
+  savePrefString("webGotifyToken", KEY_GOTIFYTOKEN, gotifyToken, "Gotify Token");
 
   preferences.end(); // always close Preferences handle
 
@@ -542,7 +530,7 @@ void handleFactoryReset() {
 // NTP sync
 void syncDateTime() {
   // syncing NTP time
-  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo, false);
+  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo);
   configTzTime(tzInfo.c_str(), ntpServer.c_str());  // Synchronizing ESP32 system time with NTP
   if (getLocalTime(&local, 10000)) { // Try to synchronize up to 10s
     // set actual date in global variable actualDate
@@ -551,9 +539,9 @@ void syncDateTime() {
     lastSyncDay = local.tm_mday;
     char buf[64];
     strftime(buf, sizeof(buf), "now: %d.%m.%y  Zeit: %H:%M:%S", &local);
-    logPrint(String("[DATETIME] ") + buf, false);  // Format date print output
+    logPrint(String("[DATETIME] ") + buf);  // Format date print output
   } else {
-    logPrint("[DATETIME] Failed to obtain time", false);
+    logPrint("[DATETIME] Failed to obtain time");
   }
 }
 
@@ -573,7 +561,7 @@ void calculateTimeSince(const String& startDate, int &days, int &weeks) {
   days = (diffSec / 86400) + 1;
   weeks = (days / 7) + 1;
 
-  logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"), true);
+  logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
 }
 
 // Convert minutes to milliseconds (int return type)
@@ -591,7 +579,7 @@ int secondsToMilliseconds(int seconds) {
 void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd) {
   File f = LittleFS.open(LOG_PATH, FILE_APPEND);
   if (!f) {
-    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH), false);
+    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH));
     return;
   }
 
@@ -743,7 +731,7 @@ static void handleHistory() {
   // 1. Datei öffnen und erst mal zählen (wie viele im Zeitraum?)
   auto f = LittleFS.open(LOG_PATH, FILE_READ);
   if (!f) { server.send(200, "application/json", "[]"); 
-    logPrint(String("[LITTLEFS]: ") + LOG_PATH + " open failed!", false);
+    logPrint(String("[LITTLEFS]: ") + LOG_PATH + " open failed!");
     return; 
   }
 
@@ -826,7 +814,7 @@ static void handleDeleteLog() {
   if (LittleFS.exists(LOG_PATH)) {
     LittleFS.remove(LOG_PATH);
     server.send(200, "text/html", "<html><body>Gel&ouml;scht <a href=\"/\">Back</a></body></html>");
-    logPrint("[WEB] CSV deleted: " + String(LOG_PATH), false);
+    logPrint("[WEB] CSV deleted: " + String(LOG_PATH));
   } else {
     server.send(404, "text/html", "<html><body>No CSV found. <a href=\"/\">Back</a></body></html>");
   }
@@ -898,7 +886,7 @@ void handleStartWatering() {
     float wateringTask = wateringSecond * timePerTask;
     irrigationRuns = wateringTask / amountOfWater;
 
-    logPrint("[IRRIGATION] Starting watering: " + String(irrigation) + " ml in " + String(irrigationRuns) + " runs of " + String(amountOfWater) + " ml each.", false);
+    logPrint("[IRRIGATION] Starting watering: " + String(irrigation) + " ml in " + String(irrigationRuns) + " runs of " + String(amountOfWater) + " ml each.");
 
     if (language == "de") {
       sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
@@ -910,7 +898,7 @@ void handleStartWatering() {
     server.send(303);
   } else {
     irrigationRuns > 0;
-    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.", false);
+    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
     server.sendHeader("Location", "/");
     server.send(303);
   }
@@ -926,14 +914,14 @@ float calculateTankPercent(float current, float minTank, float maxTank) {
 void readTankLevel() {
   tankLevelCm = pingTankLevel(TRIG, ECHO);
   if (!isnan(tankLevelCm)) {
-    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm", false);
+    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm");
     server.sendHeader("Location", "/");
     server.send(303);
     if (maxTank == 0 || maxTank == minTank) return;
     tankLevel = calculateTankPercent(tankLevelCm, minTank, maxTank);
-    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %", false);
+    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %");
   } else {
-    logPrint("[TANK LEVEL] Error reading tank level.", false);
+    logPrint("[TANK LEVEL] Error reading tank level.");
     server.sendHeader("Location", "/");
     server.send(303);
   }
@@ -946,7 +934,7 @@ String calculateEndtimeWatering() {
   unsigned long hours = totalMinutes / 60;
   unsigned long minutes = totalMinutes % 60;
 
-  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.", false);
+  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.");
 
   return String(hours) + ":" + String(minutes);
 }
@@ -976,12 +964,12 @@ bool sendPushover(const String& message, const String& title) {
     String resp = https.getString();
     https.end();
 
-    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code), true);
-    logPrint("[MESSAGE] " + resp, true);
+    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code));
+    logPrint("[MESSAGE] " + resp);
 
     return (code == 200);
   } else {
-    logPrint("[MESSAGE] Pushover notification not sent: disabled", true);
+    logPrint("[MESSAGE] Pushover notification not sent: disabled");
     return false;
   }
 }
@@ -1011,11 +999,11 @@ bool sendGotify(const String& msg, const String& title, int priority) {
     String resp = http.getString();
     http.end();
 
-    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code), true);
-    logPrint("[MESSAGE] " + resp, true);
+    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code));
+    logPrint("[MESSAGE] " + resp);
     return (code >= 200 && code < 300);
   } else {
-    logPrint("[MESSAGE] Gotify notification not sent: disabled", true);
+    logPrint("[MESSAGE] Gotify notification not sent: disabled");
     return false;
   }
   
@@ -1394,7 +1382,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
 
   // IP prüfen
   if (!hasValidIPv4(dev.ip)) {
-    logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'", true);
+    logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'");
     return v;
   }
 
@@ -1418,8 +1406,8 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
 
   if (!ok) {
     logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
-             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path, true);
-    if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200), true);
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
+    if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200));
     return v;
   }
 
@@ -1427,7 +1415,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
-    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()), true);
+    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()));
     return v;
   }
 
@@ -1460,7 +1448,7 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     path = "/rpc/Switch.Set?id=" + String(switchId) + "&on=" + String(on ? "true" : "false");
   }
 
-  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path, true);
+  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path);
 
   int code = -1;
   String body;
@@ -1469,7 +1457,7 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
                                      settings.shelly.username,
                                      settings.shelly.password,
                                      code, body);
-  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()), true);
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
   return ok && (code == 200);
 }
 

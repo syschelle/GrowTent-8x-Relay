@@ -55,7 +55,7 @@ extern SensorReadings cur;
 extern Targets target;
 extern String readSensorData();
 extern void calculateTimeSince(const String& dateStr, int& daysOut, int& weeksOut);
-extern void logPrint(const String& msg, bool isDebugLine);
+extern void logPrint(const String& msg);
 extern void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd);
 extern void compactLog();
 
@@ -397,9 +397,9 @@ void savePrefString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + targetVar, false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + targetVar);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)", false);
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -460,7 +460,7 @@ auto getCpuLoadPct = []() -> float {
     if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
       DS18B20STemperature = dsTemp;
     } else {
-      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.", true);
+      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
     }
   }
   
@@ -492,7 +492,7 @@ auto getCpuLoadPct = []() -> float {
       if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(cur.temperatureC) && !isnan(cur.humidityPct) && !isnan(cur.vpdKpa)) {
         appendLog(now, cur.temperatureC, cur.humidityPct, cur.vpdKpa);
         lastLog = now;
-        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH), false);
+        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
       }
 
       // compact hourly
@@ -500,7 +500,7 @@ auto getCpuLoadPct = []() -> float {
       if (now - lastCompact >= COMPACT_EVERY_MS) {
         compactLog();  // keeps only the last 48 hours
         lastCompact = now;
-        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH), false);
+        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
       }
 
       // hier könntest du auch deine "addReading(...)" für die 1h-Mittel aufrufen
@@ -591,7 +591,7 @@ auto getCpuLoadPct = []() -> float {
   
   // ---- Shelly Main Switch ----
   if (!shelly.main.values.ok) {
-    logPrint("[API] MAIN SWITCH request not ok", true);
+    logPrint("[API] MAIN SWITCH request not ok");
     json += "\"shellyMainSwitchStatus\":false,\n";
     json += "\"shellyMainSwitchPower\":null,\n";
     json += "\"shellyMainSwitchTotalWh\":null,\n";
@@ -611,7 +611,7 @@ auto getCpuLoadPct = []() -> float {
 
   // ---- Shelly Heater ----
   if (!shelly.heat.values.ok) {
-    logPrint("[API] HEATER request not ok", true);
+    logPrint("[API] HEATER request not ok");
     json += "\"shellyHeaterStatus\":false,\n";
     json += "\"shellyHeaterPower\":null,\n";
     json += "\"shellyHeaterTotalWh\":null,\n";
@@ -632,7 +632,7 @@ auto getCpuLoadPct = []() -> float {
 
   // ---- Shelly Humidifier ----
   if (!shelly.hum.values.ok) {
-    logPrint("[API] HUMIDIFIER request not ok", true);
+    logPrint("[API] HUMIDIFIER request not ok");
     json += "\"shellyHumidifierStatus\":false,\n";
     json += "\"shellyHumidifierPower\":null,\n";
     json += "\"shellyHumidifierTotalWh\":null,\n";
@@ -652,7 +652,7 @@ auto getCpuLoadPct = []() -> float {
 
   // ---- Shelly Fan ----
   if (!shelly.fan.values.ok) {
-    logPrint("[SHELLY] FAN request not ok", true);
+    logPrint("[SHELLY] FAN request not ok");
     json += "\"shellyFanStatus\":false,\n";
     json += "\"shellyFanPower\":null,\n";
     json += "\"shellyFanTotalWh\":null,\n";

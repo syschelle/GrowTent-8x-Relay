@@ -28,7 +28,7 @@ void taskWatering(void *parameter){
         minFree
       );
 
-      logPrint(String(buf), true);
+      logPrint(String(buf));
     }
 
     if (irrigationRuns > 0) {
@@ -57,7 +57,7 @@ void taskWatering(void *parameter){
     if (irrigationRuns > 0) {
       tankLevelCm = pingTankLevel(TRIG, ECHO);
       // Log remaining irrigation runs
-      logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigationRuns), false);
+      logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigationRuns));
       delay(minutesToMilliseconds(betweenTasks)); // wait 5 minutes before next run
     } else {
       wTimeLeft = "00:00";

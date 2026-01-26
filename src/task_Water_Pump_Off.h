@@ -28,7 +28,7 @@ void taskWaterPumpOff(void *parameter){
         minFree
       );
 
-      logPrint(String(buf), true);
+      logPrint(String(buf));
     }
 
     // Handle relay off timing for irrigation pumps (relays 6,7,8)

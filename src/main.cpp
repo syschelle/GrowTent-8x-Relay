@@ -162,19 +162,53 @@ static void taskDeferredInit(void* /*pv*/) {
   // DS18B20 init (quick)
   sensors.begin();
 
-  // I2C + BME280 init (no full bus scan, no 10s retry)
+  // I2C + BME280 init
   Wire.begin(I2C_SDA, I2C_SCL);
-  Wire.setClock(400000); // faster I2C
+  Wire.setClock(100000); // robust for longer wiring
 
+  // I2C bus scan
+  logPrint("[I2C] Scanning bus...");
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      logPrint("[I2C] Found device at 0x" + String(addr, HEX));
+      delay(2);
+    }
+  }
+
+  // Initialize BME280 sensor (retry up to 10s)
   bmeAvailable = false;
-  if (bme.begin(0x76, &Wire) || bme.begin(0x77, &Wire)) {
-    bmeAvailable = true;
-    logPrint("[SENSOR] BME280 initialized", true);
-    // seed with one reading
-    readSensorData();
-    addReading(cur.extTempC, cur.humidityPct, cur.vpdKpa);
-  } else {
-    logPrint("[SENSOR] BME280 not found (will run without it)", true);
+  uint8_t candidates[2] = { 0x76, 0x77 };
+  bool bmeInit = false;
+
+  unsigned long startTime = millis();
+  while (!bmeInit && (millis() - startTime < 10000)) {
+    for (uint8_t i = 0; i < 2 && !bmeInit; i++) {
+      uint8_t a = candidates[i];
+      logPrint("[SENSOR] Trying BME280 at 0x" + String(a, HEX) + " ...");
+
+      if (bme.begin(a, &Wire)) { // wichtig: &Wire
+        logPrint("[SENSOR] BME280 initialized at 0x" + String(a, HEX));
+        bmeAvailable = true;
+
+        // seed with one reading
+        readSensorData();
+        addReading(cur.extTempC, cur.humidityPct, cur.vpdKpa);
+
+        bmeInit = true;
+      } else {
+        delay(250);
+      }
+    }
+
+    if (!bmeInit) {
+      logPrint("[SENSOR] BME280 not found, retrying in 500 ms. Check wiring!");
+      delay(500);
+    }
+  }
+
+  if (!bmeAvailable) {
+    logPrint("[SENSOR] BME280 not found (will run without it)");
   }
 
   // Start tasks (they should be written defensively: check wifiReady/bmeAvailable)
@@ -209,9 +243,9 @@ void setup() {
 
   // Mount FS quickly (don't auto-format on boot)
   if (!LittleFS.begin(false)) {
-    logPrint("[LITTLEFS] mount failed", false);
+    logPrint("[LITTLEFS] mount failed");
   } else {
-    logPrint("[LITTLEFS] mounted", false);
+    logPrint("[LITTLEFS] mounted");
   }
 
   // Initialize relay outputs ASAP (prevent random toggles)
@@ -234,7 +268,7 @@ void setup() {
   } else {
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
-    logPrint("[WIFI] Connecting to: " + ssidName, true);
+    Serial.println("[WIFI] Connecting to: " + ssidName);
 
     const uint32_t t0 = millis();
     while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 3000) {
@@ -244,15 +278,15 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
       wifiReady = true;
       espMode = false;
-      logPrint("[WIFI] Connected: " + WiFi.localIP().toString(), true);
+      Serial.println("[WIFI] Connected: " + WiFi.localIP().toString());
 
       // Minimal boot info (fast)
-      logPrint("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__), true);
+      Serial.println("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__));
 
       // NTP sync now (only if WiFi up)
       syncDateTime();
     } else {
-      logPrint("[WIFI] Connect timeout -> start AP", true);
+      Serial.println("[WIFI] Connect timeout -> start AP");
       espMode = true;
       startSoftAP();
     }
@@ -345,7 +379,7 @@ void setup() {
   });
 
   server.begin();
-  logPrint("[APP] Web server started", false);
+  logPrint("[APP] Web server started");
 
   // Do the slow init after the webserver is up.
   xTaskCreatePinnedToCore(taskDeferredInit, "deferredInit", 4096, nullptr, 1, nullptr, 0);
@@ -359,7 +393,7 @@ void loop() {
   struct tm timeinfo;
   if (wifiReady && getLocalTime(&timeinfo)) {
     if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
-      logPrint("Performing daily NTP sync...", false);
+      logPrint("Performing daily NTP sync...");
       configTzTime(tzInfo.c_str(), ntpServer.c_str());
       lastSyncDay = timeinfo.tm_mday;
     }

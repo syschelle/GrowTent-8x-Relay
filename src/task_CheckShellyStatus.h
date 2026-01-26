@@ -28,7 +28,7 @@ void taskShellyStatus(void *parameter){
         minFree
       );
 
-      logPrint(String(buf), true);
+      logPrint(String(buf));
     }
 
     shelly.main.values = getShellyValues(settings.shelly.main, 0);

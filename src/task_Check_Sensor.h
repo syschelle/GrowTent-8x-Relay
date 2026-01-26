@@ -32,7 +32,7 @@ void taskCheckBMESensor(void *parameter){
         minFree
       );
 
-      logPrint(String(buf), true);
+      logPrint(String(buf));
     }
 
     // Check every MEASURE_INTERVAL the tank level
