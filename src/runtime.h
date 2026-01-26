@@ -78,7 +78,7 @@ void handleRoot() {
     // Build HTML
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
-    html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
+    //html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
     html.replace("%CONTROLLERNAME%",  boxName);
     } else {
     html = FPSTR(htmlPage);
@@ -287,9 +287,6 @@ void handleRoot() {
 // Read stored preferences
 void readPreferences() {
   preferences.begin(PREF_NS, true);
-  // debug flag
-  loadPrefString(KEY_DEBUG_ENABLED, debugLogEnabled, "", true, "debugEnabled");
-  if (debugLogEnabled) debugLogEnabled = "checked";
 
   // relays
   relayNames[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
@@ -301,7 +298,6 @@ void readPreferences() {
   loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
-  loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
   loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, targetVPD, 1.0f, true, "targetVPD");

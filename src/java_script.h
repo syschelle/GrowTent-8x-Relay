@@ -868,37 +868,80 @@ window.addEventListener('DOMContentLoaded', () => {
   const h = canvas.clientHeight || canvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  // background grid
-  ctx.globalAlpha = 0.25;
-  ctx.beginPath();
-  for (let i = 1; i <= 3; i++) {
-    const y = (h * i) / 4;
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
+  // --- Layout: Platz links für Skala ---
+  const padTop = 6, padRight = 6, padBottom = 6;
+  const padLeft = 44; // Platz für Y-Achsenwerte
+
+  const innerW = w - padLeft - padRight;
+  const innerH = h - padTop - padBottom;
+
+  // kleine Hilfsfunktion für "schöne" Tick-Abstände
+  function niceStep(range, ticks){
+    if (!(range > 0) || !(ticks > 0)) return 1;
+    const rough = range / ticks;
+    const pow10 = Math.pow(10, Math.floor(Math.log10(rough)));
+    const r = rough / pow10;
+    let nice = 1;
+    if (r >= 5) nice = 5;
+    else if (r >= 2) nice = 2;
+    else nice = 1;
+    return nice * pow10;
   }
+
+  // Grid + Y-Achsen-Labels
+  ctx.save();
+  const ticks = 4;
+  const range = (max2 - min2);
+  const step = niceStep(range, ticks);
+
+  const yMinTick = Math.floor(min2 / step) * step;
+  const yMaxTick = Math.ceil(max2 / step) * step;
+
+  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let v = yMinTick; v <= yMaxTick + 0.000001; v += step) {
+    const t = (v - min2) / (max2 - min2);
+    const y = padTop + innerH * (1 - t);
+
+    // Grid-Linie
+    ctx.globalAlpha = 0.20;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(w - padRight, y);
+    ctx.stroke();
+
+    // Label
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = stroke;
+    ctx.fillText(v.toFixed(decimals), padLeft - 6, y);
+  }
+
+  // Y-Achse links
+  ctx.globalAlpha = 0.35;
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop);
+  ctx.lineTo(padLeft, h - padBottom);
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  ctx.restore();
 
   if (min2 === null || max2 === null || arr.length < 2) return;
 
-  const pad = 6;
-  const innerW = w - pad * 2;
-  const innerH = h - pad * 2;
   const n = arr.length;
-
   const xStep = innerW / Math.max(1, n - 1);
   const yScale = innerH / (max2 - min2);
 
   // ---- Soll-Linie (gestrichelt) ----
   if (tOk) {
-    const yT = pad + (max2 - targetValue) * yScale;
+    const yT = padTop + (max2 - targetValue) * yScale;
     ctx.save();
     ctx.globalAlpha = 0.75;
     ctx.setLineDash([6, 4]);
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(pad, yT);
-    ctx.lineTo(w - pad, yT);
+    ctx.moveTo(padLeft, yT);
+    ctx.lineTo(w - padRight, yT);
     ctx.stroke();
     ctx.restore();
   }
@@ -912,8 +955,8 @@ window.addEventListener('DOMContentLoaded', () => {
       started = false;
       continue;
     }
-    const x = pad + xStep * i;
-    const y = pad + (max2 - v) * yScale;
+    const x = padLeft + xStep * i;
+    const y = padTop + (max2 - v) * yScale;
     if (!started) {
       ctx.moveTo(x, y);
       started = true;

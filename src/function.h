@@ -29,9 +29,6 @@
 #define DS18B20_PIN 4
 #endif
 
-// debug flag
-extern String debugLogEnabled;
-
 // Declare OneWire + DallasTemperature objects (defined in function.cpp to avoid multiple/conflicting definitions)
 extern OneWire oneWire;
 extern DallasTemperature sensors;
@@ -417,7 +414,6 @@ void handleSaveSettings() {
     return;
   }
 
-  savePrefString("webDebugEnabled", KEY_DEBUG_ENABLED, debugLogEnabled, "Debug Enabled");
   savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);

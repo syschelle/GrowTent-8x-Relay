@@ -3,10 +3,6 @@
 // Settings Root
 Settings settings;
 
-// Debug
-bool debugLog = false;
-String debugLogEnabled = "";
-
 // Logging
 const size_t LOG_MAX_LINES = 50;
 

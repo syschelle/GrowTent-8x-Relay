@@ -193,7 +193,7 @@ static void taskDeferredInit(void* /*pv*/) {
 
         // seed with one reading
         readSensorData();
-        addReading(cur.extTempC, cur.humidityPct, cur.vpdKpa);
+        addReading(cur.temperatureC, cur.humidityPct, cur.vpdKpa);
 
         bmeInit = true;
       } else {
@@ -215,10 +215,10 @@ static void taskDeferredInit(void* /*pv*/) {
   xTaskCreatePinnedToCore(sensorTask, "sensor", 2048, nullptr, 1, &sensorTaskHandle, 1);
 
   xTaskCreatePinnedToCore(taskWaterPumpOff, "PumpOff", 2048, nullptr, 1, nullptr, 1);
-  xTaskCreatePinnedToCore(taskWatering, "Watering", 2048, nullptr, 1, nullptr, 1);
+  xTaskCreatePinnedToCore(taskWatering, "Watering", 3096, nullptr, 1, nullptr, 1);
 
   if (bmeAvailable) {
-    xTaskCreatePinnedToCore(taskCheckBMESensor, "BME", 2048, nullptr, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(taskCheckBMESensor, "BME", 4096, nullptr, 1, nullptr, 1);
   }
 
   // Shelly status task can run even if WiFi isn't ready yet; it should handle that.

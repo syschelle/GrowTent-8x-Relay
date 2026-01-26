@@ -38,6 +38,8 @@ static String jStr(const String& s) {
 static String jMasked() { return jStr("********"); }
 
 // -------------- getters --------------
+static String g_buildTag() { return "\"REG_OK_2026-01-26\""; }
+
 static String g_uptime() { return jUInt((uint32_t)(millis() / 1000UL)); }
 static String g_heap() { return jUInt((uint32_t)ESP.getFreeHeap()); }
 static String g_minheap() { return jUInt((uint32_t)ESP.getMinFreeHeap()); }
@@ -123,6 +125,7 @@ RELAY_GETTERS(6)
 RELAY_GETTERS(7)
 
 const VarItem VARS[] = {
+  {"debug.buildTag", g_buildTag, false, "debug"},
   // --- system ---
   {"sys.uptimeS", g_uptime, false, "system"},
   {"sys.freeHeap", g_heap, false, "system"},

@@ -44,6 +44,7 @@ void taskCheckBMESensor(void *parameter){
     }
     // Read sensor temperatur, humidity and vpd
     readSensorData();
+    addReading(cur.temperatureC, cur.humidityPct, cur.vpdKpa);
     // delay  10 seconds
     delay(10000); 
   }

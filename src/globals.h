@@ -45,7 +45,7 @@ struct ShellySettings {
   String password;
 };
 
-// Relay schedule (NUR EINMAL)
+// Relay schedule
 struct RelaySchedule {
   bool enabled = false;
   int start = 0; // so wie du es bisher nutzt
@@ -125,7 +125,10 @@ struct SensorReadings {
   float extTempC     = NAN;
   float vpdKpa       = NAN;
   uint32_t lastUpdateMs = 0;
-  bool ok() const { return !isnan(temperatureC) && !isnan(humidityPct); }
+
+  bool ok() const { 
+    return !isnan(temperatureC) && !isnan(humidityPct); 
+  }
 };
 
 struct Targets {
@@ -146,7 +149,6 @@ struct AvgAccumulator {
 
 // Debug
 extern bool debugLog;
-extern String debugLogEnabled;
 
 // Logging
 extern const size_t LOG_MAX_LINES;
@@ -162,7 +164,6 @@ extern bool wifiReady;
 extern const char* PREF_NS;
 extern const char* KEY_SSID;
 extern const char* KEY_PASS;
-extern const char* KEY_DEBUG_ENABLED;
 
 // Running settings keys
 extern const char* KEY_STARTDATE;
