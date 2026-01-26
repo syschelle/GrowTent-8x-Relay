@@ -57,8 +57,8 @@ const char* KEY_RELAY_START_8 = "relay_start_8";
 const char* KEY_RELAY_END_8   = "relay_end_8";
 
 // Shelly device keys
-const char* KEY_SHMAINIP = "shMainIP";
-const char* KEY_SHMAINGEN = "shMainGen";
+const char* KEY_SHELLYMAINIP = "shMainIP";
+const char* KEY_SHELLYMAINGEN = "shMainGen";
 const char* KEY_SHELLYHEATIP = "shHeatIP";
 const char* KEY_SHELLYHEATGEN = "shHeatGen";
 const char* KEY_SHELLYHUMIP = "shHumIP";

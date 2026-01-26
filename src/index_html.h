@@ -341,8 +341,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
         <div class="twoinone-label">
-          <input name="webShMainSwIP" id="shellyMainSwIP" class="control-sm" type="text" inputmode="decimal" value="%SHMAINIP%">
-          <select name="webShMainSwKind" id="shellyMainSwHostKind" class="control-sm control-xs">
+          <input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYMAINIP%">
+          <select name="webShellyMainKind" id="shellyMainSwHostKind" class="control-sm control-xs">
             <option value=""  %SHMAINSWKIND0%>----</option>
             <option value="1" %SHMAINSWKIND1%>Gen1</option>
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
@@ -355,7 +355,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
         <div class="twoinone-label">
           <input name="webShellyHeatIP" id="shellyHeatIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHEATERIP%">
-          <select name="webShHeatKind" id="shellyHeaterHostKind" class="control-sm control-xs">
+          <select name="webShellyHeatKind" id="shellyHeaterHostKind" class="control-sm control-xs">
             <option value=""  %SHHEATKIND0%>----</option>
             <option value="1" %SHHEATKIND1%>Gen1</option>
             <option value="2" %SHHEATKIND2%>Gen2</option>
@@ -368,7 +368,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
           <input name="webShellyHumIP" id="shellyHumidifierIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShHumKind" id="shellyHumidifierHostKind" class="control-sm control-xs">
+          <select name="webShellyHumKind" id="shellyHumidifierHostKind" class="control-sm control-xs">
             <option value=""  %SHHUMIDKIND0%>----</option>
             <option value="1" %SHHUMIDKIND1%>Gen1</option>
             <option value="2" %SHHUMIDKIND2%>Gen2</option>
@@ -380,8 +380,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shIPFan" data-i18n="shelly.shellyIPFan">Shelly IP Adresse für Ventilator:</label>
         <div class="twoinone-label">
-          <input name="webShFanIp" id="shellyFanIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYFANIP%">
-          <select name="webShFanKind" id="shellyFanHostKind" class="control-sm control-xs">
+          <input name="webShellyFanIP" id="shellyFanIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYFANIP%">
+          <select name="webShellyFanKind" id="shellyFanHostKind" class="control-sm control-xs">
             <option value=""  %SHFANKIND0%>----</option>
             <option value="1" %SHFANKIND1%>Gen1</option>
             <option value="2" %SHFANKIND2%>Gen2</option>
@@ -393,12 +393,12 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
-        <input name="webShUsername" id="shellyUsername" class="control-sm" type="text" value="%SHUSER%">
+        <input name="webShellyUsername" id="shellyUsername" class="control-sm" type="text" value="%SHUSER%">
       </div>
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShPassword" id="shellyPassword" class="control-sm" type="password" value="%SHPASSWORD%">
+        <input name="webShellyPassword" id="shellyPassword" class="control-sm" type="password" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>

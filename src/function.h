@@ -14,6 +14,8 @@
 #include <base64.h>
 #include <mbedtls/md.h>
 
+// global, functions, html code, js code and css code includes
+#include "globals.h"
 #include <runtime.h>
 
 // Include platform-specific headers for inet_ntoa
@@ -343,28 +345,23 @@ void handleSaveShellySettings() {
   }
 
   // --- MAIN ---
-  savePrefString("webShMainIP",   KEY_SHMAINIP,   shelly.main.ip,   true, "Main IP");
-  savePrefInt   ("webShMainKind", KEY_SHMAINGEN, shelly.main.kind, true, "Main Kind");
-  savePrefInt   ("webShMainGen",  KEY_SHMAINGEN,  shelly.main.gen,  true, "Main Gen");
+  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   shelly.main.ip,   true, "Main IP");
+  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  shelly.main.gen,  true, "Main Gen");
 
   // --- HEATER ---
-  savePrefString("webShHeatIP",   KEY_SHELLYHEATIP,   shelly.heat.ip,   true, "Heat IP");
-  savePrefInt   ("webShHeatKind", KEY_SHELLYHEATGEN, shelly.heat.kind, true, "Heat Kind");
-  savePrefInt   ("webShHeatGen",  KEY_SHELLYHEATGEN,  shelly.heat.gen,  true, "Heat Gen");
+  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   shelly.heat.ip,   true, "Heat IP");
+  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  shelly.heat.gen,  true, "Heat Gen");
 
   // --- HUM ---
-  savePrefString("webShHumIP",    KEY_SHELLYHUMIP,    shelly.hum.ip,   true, "Hum IP");
-  savePrefInt   ("webShHumKind",  KEY_SHELLYHUMGEN,  shelly.hum.kind, true, "Hum Kind");
-  savePrefInt   ("webShHumGen",   KEY_SHELLYHUMGEN,   shelly.hum.gen,  true, "Hum Gen");
-
+  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    shelly.hum.ip,   true, "Hum IP");
+  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   shelly.hum.gen,  true, "Hum Gen");
   // --- FAN ---
-  savePrefString("webShFanIP",    KEY_SHELLYFANIP,    shelly.fan.ip,   true, "Fan IP");
-  savePrefInt   ("webShFanKind",  KEY_SHELLYFANGEN,  shelly.fan.kind, true, "Fan Kind");
-  savePrefInt   ("webShFanGen",   KEY_SHELLYFANGEN,   shelly.fan.gen,  true, "Fan Gen");
-
+  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    shelly.fan.ip,   true, "Fan IP");
+  savePrefInt   ("webShellyFanKind",  KEY_SHELLYFANGEN,  shelly.fan.kind, true, "Fan Kind");
+  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   shelly.fan.gen,  true, "Fan Gen");
   // --- AUTH ---
-  savePrefString("webShUsername", KEY_SHELLYUSERNAME, shelly.username, false, "User");
-  savePrefString("webShPassword", KEY_SHELLYPASSWORD, shelly.password, false, "Pass");
+  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, shelly.username, false, "User");
+  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, shelly.password, false, "Pass");
 
   preferences.end();
 

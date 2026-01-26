@@ -197,8 +197,8 @@ extern const char* KEY_RELAY_START_8;
 extern const char* KEY_RELAY_END_8;
 
 // Shelly device keys
-extern const char* KEY_SHMAINIP;
-extern const char* KEY_SHMAINGEN;
+extern const char* KEY_SHELLYMAINIP;
+extern const char* KEY_SHELLYMAINGEN;
 extern const char* KEY_SHELLYHEATIP;
 extern const char* KEY_SHELLYHEATGEN;
 extern const char* KEY_SHELLYHUMIP;

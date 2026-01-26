@@ -331,8 +331,8 @@ void readPreferences() {
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
 
   // Shelly devices
-  loadPrefString(KEY_SHMAINIP, shelly.main.ip, "", true, "Shelly Main IP");
-  loadPrefInt(KEY_SHMAINGEN, shelly.main.gen, 1, true, "Shelly Main Generation");
+  loadPrefString(KEY_SHELLYMAINIP, shelly.main.ip, "", true, "Shelly Main IP");
+  loadPrefInt(KEY_SHELLYMAINGEN, shelly.main.gen, 1, true, "Shelly Main Generation");
   loadPrefString(KEY_SHELLYHEATIP, shelly.heat.ip, "", true, "Shelly Heater IP");
   loadPrefInt(KEY_SHELLYHEATGEN, shelly.heat.gen, 1, true, "Shelly Heater Generation");
   loadPrefString(KEY_SHELLYHUMIP, shelly.hum.ip, "", true, "Shelly Humidifier IP");
@@ -403,12 +403,23 @@ void savePrefString(
   }
 }
 
+// ---- ESP32 system stats ----
+// Some Arduino-ESP32 / PlatformIO builds do not link the FreeRTOS run-time stats
+// functions even if the config macros are defined. Declare the symbol as weak so
+// the project still links; if it's unavailable we fall back to NAN.
+extern "C" UBaseType_t uxTaskGetSystemState(
+  TaskStatus_t* const pxTaskStatusArray,
+  const UBaseType_t uxArraySize,
+  uint32_t* const pulTotalRunTime
+) __attribute__((weak));
+
 // Read sensor temperature, humidity and vpd and DS18B20 water temperature
 String readSensorData() {
 
-// ---- ESP32 system stats ----
 auto getCpuLoadPct = []() -> float {
 #if defined(configGENERATE_RUN_TIME_STATS) && (configGENERATE_RUN_TIME_STATS == 1) && defined(configUSE_TRACE_FACILITY) && (configUSE_TRACE_FACILITY == 1)
+  // If the symbol is not available in the linked FreeRTOS build, don't fail.
+  if (!uxTaskGetSystemState) return NAN;
   const UBaseType_t taskCount = uxTaskGetNumberOfTasks();
   TaskStatus_t *statusArray = (TaskStatus_t*) pvPortMalloc(taskCount * sizeof(TaskStatus_t));
   if (!statusArray) return NAN;
