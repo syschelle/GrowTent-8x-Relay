@@ -345,23 +345,40 @@ void handleSaveShellySettings() {
   }
 
   // --- MAIN ---
-  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   shelly.main.ip,   true, "Main IP");
-  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  shelly.main.gen,  true, "Main Gen");
+  // IPv4-only: normalize/validate IP strings before saving
+  auto normalizeIPv4 = [](String& ip) {
+    ip.trim();
+    if (ip.length() == 0) return;
+    IPAddress tmp;
+    if (!tmp.fromString(ip)) {
+      // invalid -> clear to avoid saving DNS/IPv6/garbage
+      ip = "";
+      return;
+    }
+    ip = tmp.toString();
+  };
+
+  // keep Settings as source of truth
+  normalizeIPv4(settings.shelly.main.ip);
+  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   settings.shelly.main.ip,   true, "Main IP");
+  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  settings.shelly.main.gen,  true, "Main Gen");
 
   // --- HEATER ---
-  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   shelly.heat.ip,   true, "Heat IP");
-  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  shelly.heat.gen,  true, "Heat Gen");
+  normalizeIPv4(settings.shelly.heat.ip);
+  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   settings.shelly.heat.ip,   true, "Heat IP");
+  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  settings.shelly.heat.gen,  true, "Heat Gen");
 
   // --- HUM ---
-  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    shelly.hum.ip,   true, "Hum IP");
-  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   shelly.hum.gen,  true, "Hum Gen");
+  normalizeIPv4(settings.shelly.hum.ip);
+  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    settings.shelly.hum.ip,   true, "Hum IP");
+  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   settings.shelly.hum.gen,  true, "Hum Gen");
   // --- FAN ---
-  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    shelly.fan.ip,   true, "Fan IP");
-  savePrefInt   ("webShellyFanKind",  KEY_SHELLYFANGEN,  shelly.fan.kind, true, "Fan Kind");
-  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   shelly.fan.gen,  true, "Fan Gen");
+  normalizeIPv4(settings.shelly.fan.ip);
+  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    settings.shelly.fan.ip,   true, "Fan IP");
+  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   settings.shelly.fan.gen,  true, "Fan Gen");
   // --- AUTH ---
-  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, shelly.username, false, "User");
-  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, shelly.password, false, "Pass");
+  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, settings.shelly.username, false, "User");
+  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, false, "Pass");
 
   preferences.end();
 
@@ -1353,7 +1370,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
   // Gen1 often uses Basic or simple auth; Gen2/3 typically uses Digest
   bool ok = httpGetWithDigestAutoAuth(
     host, port, path,
-    shelly.username, shelly.password,
+    settings.shelly.username, settings.shelly.password,
     code, body
   );
 
@@ -1421,7 +1438,10 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
   int code = -1;
   String body;
 
-  bool ok = httpGetWithDigestAutoAuth(host, port, path, shelly.username, shelly.password, code, body);
+  bool ok = httpGetWithDigestAutoAuth(host, port, path,
+                                     settings.shelly.username,
+                                     settings.shelly.password,
+                                     code, body);
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()), true);
   return ok && (code == 200);
 }

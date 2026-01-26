@@ -30,7 +30,6 @@ struct ShellyValues {
 // Shelly device info
 struct ShellyDevice {
   String ip;
-  int    kind = 0;
   int    gen  = 1;
   ShellyValues values;
 };

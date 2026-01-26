@@ -332,13 +332,13 @@ void readPreferences() {
 
   // Shelly devices
   loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");
-  loadPrefInt(KEY_SHELLYMAINGEN, settings.shelly.main.gen, 1, true, "Shelly Main Generation");
+  loadPrefInt(KEY_SHELLYMAINGEN, settings.shelly.main.gen, 0, true, "Shelly Main Generation");
   loadPrefString(KEY_SHELLYHEATIP, settings.shelly.heat.ip, "", true, "Shelly Heater IP");
-  loadPrefInt(KEY_SHELLYHEATGEN, settings.shelly.heat.gen, 1, true, "Shelly Heater Generation");
+  loadPrefInt(KEY_SHELLYHEATGEN, settings.shelly.heat.gen, 0, true, "Shelly Heater Generation");
   loadPrefString(KEY_SHELLYHUMIP, settings.shelly.hum.ip, "", true, "Shelly Humidifier IP");
-  loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.hum.gen, 1, true, "Shelly Humidifier Generation");
+  loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.hum.gen, 0, true, "Shelly Humidifier Generation");
   loadPrefString(KEY_SHELLYFANIP, settings.shelly.fan.ip, "", true, "Shelly Fan IP");
-  loadPrefInt(KEY_SHELLYFANGEN, settings.shelly.fan.gen, 1, true, "Shelly Fan Generation");
+  loadPrefInt(KEY_SHELLYFANGEN, settings.shelly.fan.gen, 0, true, "Shelly Fan Generation");
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
   loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");

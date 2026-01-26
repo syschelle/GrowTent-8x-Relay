@@ -343,8 +343,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
         <div class="twoinone-label">
           <input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYMAINIP%">
-          <select name="webShellyMainKind" id="shellyMainSwHostKind" class="control-sm control-xs">
-            <option value=""  %SHMAINSWKIND0%>----</option>
+          <select name="webShellyMainGen" id="shellyMainSwGen" class="control-sm control-xs">
             <option value="1" %SHMAINSWKIND1%>Gen1</option>
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
             <option value="3" %SHMAINSWKIND3%>Gen3</option>
@@ -356,8 +355,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
         <div class="twoinone-label">
           <input name="webShellyHeatIP" id="shellyHeatIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHEATERIP%">
-          <select name="webShellyHeatKind" id="shellyHeaterHostKind" class="control-sm control-xs">
-            <option value=""  %SHHEATKIND0%>----</option>
+          <select name="webShellyHeatGen" id="shellyHeaterGen" class="control-sm control-xs">
             <option value="1" %SHHEATKIND1%>Gen1</option>
             <option value="2" %SHHEATKIND2%>Gen2</option>
             <option value="3" %SHHEATKIND3%>Gen3</option>
@@ -369,8 +367,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
           <input name="webShellyHumIP" id="shellyHumidifierIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShellyHumKind" id="shellyHumidifierHostKind" class="control-sm control-xs">
-            <option value=""  %SHHUMIDKIND0%>----</option>
+          <select name="webShellyHumGen" id="shellyHumidifierGen" class="control-sm control-xs">
             <option value="1" %SHHUMIDKIND1%>Gen1</option>
             <option value="2" %SHHUMIDKIND2%>Gen2</option>
             <option value="3" %SHHUMIDKIND3%>Gen3</option>
@@ -382,8 +379,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shIPFan" data-i18n="shelly.shellyIPFan">Shelly IP Adresse für Ventilator:</label>
         <div class="twoinone-label">
           <input name="webShellyFanIP" id="shellyFanIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYFANIP%">
-          <select name="webShellyFanKind" id="shellyFanHostKind" class="control-sm control-xs">
-            <option value=""  %SHFANKIND0%>----</option>
+          <select name="webShellyFanGen" id="shellyFanGen" class="control-sm control-xs">
             <option value="1" %SHFANKIND1%>Gen1</option>
             <option value="2" %SHFANKIND2%>Gen2</option>
             <option value="3" %SHFANKIND3%>Gen3</option>

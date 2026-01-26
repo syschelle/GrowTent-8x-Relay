@@ -294,10 +294,10 @@ void setup() {
     bool ok = false;
     bool newState = false;
 
-    ShellyValues v = getShellyValues(shelly.heat, shelly.heat.gen, 0);
+    ShellyValues v = getShellyValues(settings.shelly.heat, 0);
     if (v.ok) {
       newState = !v.isOn;
-      ok = shellySwitchSet(shelly.heat.ip, shelly.heat.gen, newState, 0, 80);
+      ok = shellySwitchSet(settings.shelly.heat.ip, settings.shelly.heat.gen, newState, 0, 80);
     }
 
     String resp = String("{\"ok\":") + (ok ? "true" : "false") +
@@ -310,10 +310,10 @@ void setup() {
     bool ok = false;
     bool newState = false;
 
-    ShellyValues v = getShellyValues(shelly.hum, shelly.hum.gen, 0);
+    ShellyValues v = getShellyValues(settings.shelly.hum, 0);
     if (v.ok) {
       newState = !v.isOn;
-      ok = shellySwitchSet(shelly.hum.ip, shelly.hum.gen, newState, 0);
+      ok = shellySwitchSet(settings.shelly.hum.ip, settings.shelly.hum.gen, newState, 0);
     }
 
     String resp = String("{\"ok\":") + (ok ? "true" : "false") +
