@@ -149,6 +149,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
     "message.gotifyUrl.ph": "z. B. https://gotify.me/message",
     "message.gotifyToken": "Gotify App Token:",
     "message.gotifyToken.ph": "z. B. a1b2c3",
+    "vars.variables": "Variablen",
+    "vars.hint": "Debug-Ansicht: alle registrierten Werte (automatisch aus /api/state). Tokens/Passwörter werden maskiert.",
     "logging.title": "Systemprotokoll",
     "factory.title": "Werkseinstellungen",
     "factory.reset": "Zurücksetzen / Neustart"
@@ -277,6 +279,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
     "message.gotifyUrl.ph": "e.g. https://gotify.me/message",
     "message.gotifyToken": "Gotify App Token:",
     "message.gotifyToken.ph": "e.g. a1b2c3",
+    "vars.variables": "Variables",
+    "vars.hint": "Debug view: all registered values (automatically from /api/state). Tokens/passwords are masked.",
     "logging.title": "Logging Settings",
     "factory.title": "Factory Settings",
     "factory.reset": "Reset / Restart"
@@ -460,6 +464,12 @@ window.addEventListener('DOMContentLoaded', () => {
   const $  = (id) => document.getElementById(id);
   const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
   const isNum = x => typeof x === 'number' && !Number.isNaN(x);
+  const escapeHtml = (s) => {
+    const str = String(s);
+    return str.replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  };
 
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');
@@ -1037,6 +1047,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // SPA-Seitenwechsel-Callback
   function onPageChanged(activeId) {
     if (activeId === 'logging') startWebLog(); else stopWebLog();
+    if (activeId === 'vars') {
+      // Load once when opening the page (and on refresh)
+      loadVars();
+    }
   }
 
   // Phase-Init
@@ -1066,6 +1080,53 @@ window.addEventListener('DOMContentLoaded', () => {
     autoScroll = !autoScroll;
     document.getElementById('toggleScrollBtn').textContent = `AutoScroll: ${autoScroll ? 'ON' : 'OFF'}`;
   });
+
+  // ---------- Variables / State page ----------
+  let _lastStateObj = null;
+
+  function renderVars(stateObj, filterText) {
+    const tbody = document.getElementById('varsTbody');
+    if (!tbody) return;
+    const f = (filterText || '').trim().toLowerCase();
+
+    // flatten keys and sort for stable UX
+    const entries = Object.entries(stateObj || {}).
+      sort((a,b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
+      .filter(([k,v]) => !f || k.toLowerCase().includes(f) || String(v).toLowerCase().includes(f));
+
+    if (entries.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2">—</td></tr>';
+      return;
+    }
+
+    const rows = entries.map(([k, v]) => {
+      // JSON values can be numbers, booleans, strings, null
+      const val = (v === null || typeof v === 'undefined') ? 'null' : String(v);
+      return `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(val)}</td></tr>`;
+    });
+    tbody.innerHTML = rows.join('');
+  }
+
+  async function loadVars() {
+    const meta = document.getElementById('varsMeta');
+    const search = document.getElementById('varsSearch');
+    if (meta) meta.textContent = 'Loading…';
+    try {
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const obj = await res.json();
+      _lastStateObj = obj;
+      const n = obj ? Object.keys(obj).length : 0;
+      if (meta) meta.textContent = `${n} values • updated ${new Date().toLocaleTimeString()}`;
+      renderVars(obj, search ? search.value : '');
+    } catch (e) {
+      console.error('[VARS] load failed', e);
+      if (meta) meta.textContent = 'Error loading /api/state';
+    }
+  }
+
+  document.getElementById('varsRefreshBtn')?.addEventListener('click', loadVars);
+  document.getElementById('varsSearch')?.addEventListener('input', (e) => renderVars(_lastStateObj, e.target.value));
 
   // Initial call to set the correct page on load
   const initiallyActive = document.querySelector('.page.active')?.id || 'status';

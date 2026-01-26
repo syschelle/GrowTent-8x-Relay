@@ -439,4 +439,32 @@ const char cssContent[] PROGMEM = R"rawliteral(
       margin-bottom: 8px;
     }
 
+    /* --- Variables / State page --- */
+    .vars-toolbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin: 12px 0;
+    }
+    .vars-meta{
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-bottom: 10px;
+    }
+    .table-wrap{ overflow:auto; border-radius: 12px; border: 1px solid var(--border); }
+    .vars-table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      min-width: 520px;
+    }
+    .vars-table th, .vars-table td{ padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .vars-table thead th{ position: sticky; top: 0; background: var(--card); z-index: 1; text-align:left; }
+    .vars-table td:first-child{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.85rem; }
+    .vars-table td:last-child{ word-break: break-word; }
+    @media (max-width: 640px){
+      .vars-table{ min-width: 0; }
+    }
+
 )rawliteral";

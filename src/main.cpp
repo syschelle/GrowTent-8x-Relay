@@ -26,6 +26,9 @@
 #include "style_css.h"
 #include "java_script.h"
 
+// Debug variable registry ("Variables" page)
+#include "vars_registry.h"
+
 // tasks
 #include "task_Check_Sensor.h"
 #include "task_Water_Pump_Off.h"
@@ -116,6 +119,35 @@ static void handleApiHistory() {
     server.sendContent(sendNumOrNull(waterTemps[idx]));
   }
   server.sendContent("]}");
+}
+
+// -------------------- State/Variables API (registry -> JSON) --------------------
+void handleApiState() {
+  const char* nl  = "\n";
+  const char* ind = "  ";
+
+  String json;
+  json.reserve(2048);   // optional, aber gut gegen Fragmentierung
+
+  json += "{";
+  json += nl;
+
+  for (size_t i = 0; i < VARS_COUNT; i++) {
+    if (i) {
+      json += ",";
+      json += nl;
+    }
+    json += ind;
+    json += "\"";
+    json += VARS[i].key;
+    json += "\": ";
+    json += VARS[i].get();
+  }
+
+  json += nl;
+  json += "}";
+
+  server.send(200, "application/json", json);
 }
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
@@ -240,6 +272,9 @@ void setup() {
 
   // history (last hour) for charts
   server.on("/api/history", HTTP_GET, handleApiHistory);
+
+  // full state / variables (debug page)
+  server.on("/api/state", HTTP_GET, handleApiState);
 
   server.on("/startWatering", HTTP_POST, handleStartWatering);
   server.on("/pingTank", HTTP_POST, readTankLevel);

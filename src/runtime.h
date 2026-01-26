@@ -331,17 +331,17 @@ void readPreferences() {
   relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
 
   // Shelly devices
-  loadPrefString(KEY_SHELLYMAINIP, shelly.main.ip, "", true, "Shelly Main IP");
-  loadPrefInt(KEY_SHELLYMAINGEN, shelly.main.gen, 1, true, "Shelly Main Generation");
-  loadPrefString(KEY_SHELLYHEATIP, shelly.heat.ip, "", true, "Shelly Heater IP");
-  loadPrefInt(KEY_SHELLYHEATGEN, shelly.heat.gen, 1, true, "Shelly Heater Generation");
-  loadPrefString(KEY_SHELLYHUMIP, shelly.hum.ip, "", true, "Shelly Humidifier IP");
-  loadPrefInt(KEY_SHELLYHUMGEN, shelly.hum.gen, 1, true, "Shelly Humidifier Generation");
-  loadPrefString(KEY_SHELLYFANIP, shelly.fan.ip, "", true, "Shelly Fan IP");
-  loadPrefInt(KEY_SHELLYFANGEN, shelly.fan.gen, 1, true, "Shelly Fan Generation");
+  loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");
+  loadPrefInt(KEY_SHELLYMAINGEN, settings.shelly.main.gen, 1, true, "Shelly Main Generation");
+  loadPrefString(KEY_SHELLYHEATIP, settings.shelly.heat.ip, "", true, "Shelly Heater IP");
+  loadPrefInt(KEY_SHELLYHEATGEN, settings.shelly.heat.gen, 1, true, "Shelly Heater Generation");
+  loadPrefString(KEY_SHELLYHUMIP, settings.shelly.hum.ip, "", true, "Shelly Humidifier IP");
+  loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.hum.gen, 1, true, "Shelly Humidifier Generation");
+  loadPrefString(KEY_SHELLYFANIP, settings.shelly.fan.ip, "", true, "Shelly Fan IP");
+  loadPrefInt(KEY_SHELLYFANGEN, settings.shelly.fan.gen, 1, true, "Shelly Fan Generation");
   // Shelly credentials (optional Basic Auth)
-  loadPrefString(KEY_SHELLYUSERNAME, shelly.username, "", true, "Shelly Username");
-  loadPrefString(KEY_SHELLYPASSWORD, shelly.password, "", false, "Shelly Password");
+  loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
+  loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");
 
   // settings
   loadPrefString(KEY_NAME, boxName, "newGrowTent", true, "boxName");
