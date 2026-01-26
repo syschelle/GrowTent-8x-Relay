@@ -31,10 +31,10 @@ void taskShellyStatus(void *parameter){
       logPrint(String(buf), true);
     }
 
-    shelly.main.values = getShellyValues(shelly.main, 0);
-    shelly.heat.values = getShellyValues(shelly.heat, 0);
-    shelly.hum.values = getShellyValues(shelly.hum, 0);
-    shelly.fan.values = getShellyValues(shelly.fan, 0);
+    shelly.main.values = getShellyValues(settings.shelly.main, 0);
+    shelly.heat.values = getShellyValues(settings.shelly.heat, 0);
+    shelly.hum.values = getShellyValues(settings.shelly.hum, 0);
+    shelly.fan.values = getShellyValues(settings.shelly.fan, 0);
 
     // delay  10 seconds
     delay(10000); 

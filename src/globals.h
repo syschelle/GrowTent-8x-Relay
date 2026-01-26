@@ -19,7 +19,7 @@
 
 // -------------------- Structs (erst Typen, dann Settings) --------------------
 
-// Shelly (ein Modell – das behalten wir)
+// Shelly device values
 struct ShellyValues {
   bool  ok = false;
   bool  isOn = false;
@@ -27,6 +27,7 @@ struct ShellyValues {
   float energyWh = 0.0f;
 };
 
+// Shelly device info
 struct ShellyDevice {
   String ip;
   int    kind = 0;
@@ -34,6 +35,7 @@ struct ShellyDevice {
   ShellyValues values;
 };
 
+// Shelly overall settings
 struct ShellySettings {
   ShellyDevice main;
   ShellyDevice heat;
@@ -51,8 +53,8 @@ struct RelaySchedule {
   int end   = 0;
 };
 
+// Relay settings
 struct RelayGroup {
-  // Empfehlung: String statt char* (spart strdup/free Chaos)
   String name[NUM_RELAYS];
   RelaySchedule schedule[NUM_RELAYS];
 };

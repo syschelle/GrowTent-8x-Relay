@@ -184,16 +184,16 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    html.replace("%SHMAINIP%", shelly.main.ip);
-    if (shelly.main.gen == 1) {
+    html.replace("%SHELLYMAINIP%", settings.shelly.main.ip);
+    if (settings.shelly.main.gen == 1) {
       html.replace("%SHMAINSWKIND1%", "selected");
       html.replace("%SHMAINSWKIND2%", "");
       html.replace("%SHMAINSWKIND3%", "");
-    } else if (shelly.main.gen == 2) {
+    } else if (settings.shelly.main.gen == 2) {
       html.replace("%SHMAINSWKIND1%", "");
       html.replace("%SHMAINSWKIND2%", "selected");
       html.replace("%SHMAINSWKIND3%", "");
-    } else if (shelly.main.gen == 3) {
+    } else if (settings.shelly.main.gen == 3) {
       html.replace("%SHMAINSWKIND1%", "");
       html.replace("%SHMAINSWKIND2%", "");
       html.replace("%SHMAINSWKIND3%", "selected");
@@ -203,16 +203,16 @@ void handleRoot() {
       html.replace("%SHMAINSWKIND3%", "");
     }
 
-    html.replace("%SHELLYHEATERIP%", shelly.heat.ip);
-    if (shelly.heat.gen == 1) {
+    html.replace("%SHELLYHEATERIP%", settings.shelly.heat.ip);
+    if (settings.shelly.heat.gen == 1) {
       html.replace("%SHHEATKIND1%", "selected");
       html.replace("%SHHEATKIND2%", "");
       html.replace("%SHHEATKIND3%", "");
-    } else if (shelly.heat.gen == 2) {
+    } else if (settings.shelly.heat.gen == 2) {
       html.replace("%SHHEATKIND1%", "");
       html.replace("%SHHEATKIND2%", "selected");
       html.replace("%SHHEATKIND3%", "");
-    } else if (shelly.heat.gen == 3) {
+    } else if (settings.shelly.heat.gen == 3) {
       html.replace("%SHHEATKIND1%", "");
       html.replace("%SHHEATKIND2%", "");
       html.replace("%SHHEATKIND3%", "selected");
@@ -222,16 +222,16 @@ void handleRoot() {
       html.replace("%SHHEATKIND3%", "");
     }
 
-    html.replace("%SHELLYHUMIDIFIERIP%", shelly.hum.ip);
-    if (shelly.hum.gen == 1) {
+    html.replace("%SHELLYHUMIDIFIERIP%", settings.shelly.hum.ip);
+    if (settings.shelly.hum.gen == 1) {
       html.replace("%SHHUMIDKIND1%", "selected");
       html.replace("%SHHUMIDKIND2%", "");
       html.replace("%SHHUMIDKIND3%", "");
-    } else if (shelly.hum.gen == 2) {
+    } else if (settings.shelly.hum.gen == 2) {
       html.replace("%SHHUMIDKIND1%", "");
       html.replace("%SHHUMIDKIND2%", "selected");
       html.replace("%SHHUMIDKIND3%", "");
-    } else if (shelly.hum.gen == 3) {
+    } else if (settings.shelly.hum.gen == 3) {
       html.replace("%SHHUMIDKIND1%", "");
       html.replace("%SHHUMIDKIND2%", "");
       html.replace("%SHHUMIDKIND3%", "selected");
@@ -241,16 +241,16 @@ void handleRoot() {
       html.replace("%SHHUMIDKIND3%", "");
     }
 
-    html.replace("%SHELLYFANIP%", shelly.fan.ip);
-    if (shelly.fan.gen == 1) {
+    html.replace("%SHELLYFANIP%", settings.shelly.fan.ip);
+    if (settings.shelly.fan.gen == 1) {
       html.replace("%SHFANKIND1%", "selected");
       html.replace("%SHFANKIND2%", "");
       html.replace("%SHFANKIND3%", "");
-    } else if (shelly.fan.gen == 2) {
+    } else if (settings.shelly.fan.gen == 2) {
       html.replace("%SHFANKIND1%", "");
       html.replace("%SHFANKIND2%", "selected");
       html.replace("%SHFANKIND3%", "");
-    } else if (shelly.fan.gen == 3) {
+    } else if (settings.shelly.fan.gen == 3) {
       html.replace("%SHFANKIND1%", "");
       html.replace("%SHFANKIND2%", "");
       html.replace("%SHFANKIND3%", "selected");
@@ -260,8 +260,8 @@ void handleRoot() {
       html.replace("%SHFANKIND3%", "");
     }
 
-    html.replace("%SHUSER%", shelly.username);
-    html.replace("%SHPASSWORD%", shelly.password);
+    html.replace("%SHUSER%", settings.shelly.username);
+    html.replace("%SHPASSWORD%", settings.shelly.password);
 
     html.replace("%NTPSERVER%", ntpServer);
     html.replace("%TZINFO%", tzInfo);
