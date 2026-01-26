@@ -405,6 +405,42 @@ void savePrefString(
 
 // Read sensor temperature, humidity and vpd and DS18B20 water temperature
 String readSensorData() {
+
+// ---- ESP32 system stats ----
+auto getCpuLoadPct = []() -> float {
+#if defined(configGENERATE_RUN_TIME_STATS) && (configGENERATE_RUN_TIME_STATS == 1) && defined(configUSE_TRACE_FACILITY) && (configUSE_TRACE_FACILITY == 1)
+  const UBaseType_t taskCount = uxTaskGetNumberOfTasks();
+  TaskStatus_t *statusArray = (TaskStatus_t*) pvPortMalloc(taskCount * sizeof(TaskStatus_t));
+  if (!statusArray) return NAN;
+
+  uint32_t totalRunTime = 0;
+  const UBaseType_t got = uxTaskGetSystemState(statusArray, taskCount, &totalRunTime);
+  if (got == 0 || totalRunTime == 0) {
+    vPortFree(statusArray);
+    return NAN;
+  }
+
+  uint32_t idleRunTime = 0;
+  for (UBaseType_t i = 0; i < got; i++) {
+    const char* n = statusArray[i].pcTaskName;
+    if (n && (strncmp(n, "IDLE", 4) == 0)) {
+      idleRunTime += statusArray[i].ulRunTimeCounter;
+    }
+  }
+  vPortFree(statusArray);
+
+  const float idlePct = (100.0f * (float)idleRunTime) / (float)totalRunTime;
+  float loadPct = 100.0f - idlePct;
+  if (loadPct < 0) loadPct = 0;
+  if (loadPct > 100) loadPct = 100;
+  return loadPct;
+#else
+  // Run-time stats not enabled in build -> no reliable CPU load
+  return NAN;
+#endif
+};
+
+
   // read DS18B20 water temperature if enabled
   if (DS18B20) {
     sensors.requestTemperatures();
@@ -621,6 +657,20 @@ String readSensorData() {
     } else {
       json += "\"shellyFanTotalWh\":null,\n";
     }
+  }
+
+
+  // ---- ESP32 stats ----
+  json += "\"espFreeHeap\":" + String(ESP.getFreeHeap()) + ",\n";
+  json += "\"espMinFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\n";
+  json += "\"espCpuMhz\":" + String(ESP.getCpuFreqMHz()) + ",\n";
+  json += "\"espUptimeS\":" + String((uint32_t)(millis() / 1000UL)) + ",\n";
+
+  float _load = getCpuLoadPct();
+  if (!isnan(_load) && !isinf(_load)) {
+    json += "\"espLoadPct\":" + String(_load, 1) + ",\n";
+  } else {
+    json += "\"espLoadPct\":null,\n";
   }
 
   // captured time

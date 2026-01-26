@@ -2,7 +2,7 @@
 
 #pragma once
 
-const char* cssContent = R"rawliteral(
+const char cssContent[] PROGMEM = R"rawliteral(
 :root{
       --header:#2c3e50; --side:#34495e; --bg:#f5f5f5; --text:#333;
       --border:#dddddd; --muted:#ffffff; --link:#2c3e50;
@@ -215,13 +215,36 @@ const char* cssContent = R"rawliteral(
     }
 
     .metric {
-      flex: 1 1 220px;              /* wraps on smaller screens */
-      min-width: 200px;
+      flex: 1 1 200px;              /* wraps on smaller screens */
+      min-width: 180px;
       border: 1px solid var(--border, #ddd);
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       background: var(--muted, #fafafa);
     }
+
+    /* -------- History charts -------- */
+    .history-head{display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .history-head h2{margin:0;}
+    .history-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+      margin-top:10px;
+      margin-bottom:16px;
+    }
+    @media (min-width:700px){
+      .history-grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .chart-card{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:10px;
+      background: var(--muted);
+    }
+    .chart-title{font-weight:600; font-size:.95rem; opacity:.9; margin-bottom:6px}
+    .chart-foot{font-size:.85rem; opacity:.75; margin-top:6px; display:flex; justify-content:flex-end}
+    canvas{width:100%; height:auto; display:block}
 
     .metric-label {
       font-size: .95rem;
@@ -230,7 +253,7 @@ const char* cssContent = R"rawliteral(
     }
 
     .metric-value {
-      font-size: 1.6rem;
+      font-size: clamp(1.15rem, 1.2vw + 0.8rem, 1.45rem);
       font-weight: 700;
       display: flex;
       align-items: baseline;
@@ -270,6 +293,8 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-card {
+      flex: 1 1 180px;
+      max-width: 320px;
       background: var(--muted);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -380,6 +405,32 @@ const char* cssContent = R"rawliteral(
       display: flex;
       align-items: center;
       gap: 4px;
+    }
+
+
+    /* Inline controls: responsive + compact */
+    .twoinone-label{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .twoinone-label > span{
+      white-space:nowrap;
+    }
+    .twoinone-label input,
+    .twoinone-label select{
+      flex: 1 1 180px;
+      min-width: 140px;
+    }
+    .control-sm{
+      padding:8px;
+      border-radius: 8px;
+    }
+    .control-xs{
+      flex: 0 0 auto;
+      min-width: 120px;
+      max-width: 160px;
     }
 
     .info {

@@ -63,6 +63,61 @@ TaskHandle_t sensorTaskHandle = nullptr;
 // Forward declarations
 void startSoftAP();
 
+// -------------------- History API (ring buffer -> JSON) --------------------
+static void handleApiHistory() {
+  // Snapshot (simple; good enough for UI)
+  const int n = (count < NUM_VALUES) ? count : NUM_VALUES;
+  const int start = (index_pos - n + NUM_VALUES) % NUM_VALUES;
+
+  server.sendHeader("Cache-Control", "no-store");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json; charset=utf-8", "");
+
+  auto sendNumOrNull = [](float v) {
+    if (isnan(v)) return String("null");
+    // keep payload small
+    return String(v, 2);
+  };
+
+  server.sendContent("{\"n\":" + String(n) + ",\"intervalSec\":10,");
+
+  // temps
+  server.sendContent("\"temp\":[");
+  for (int i = 0; i < n; i++) {
+    int idx = (start + i) % NUM_VALUES;
+    if (i) server.sendContent(",");
+    server.sendContent(sendNumOrNull(temps[idx]));
+  }
+  server.sendContent("],");
+
+  // hum
+  server.sendContent("\"hum\":[");
+  for (int i = 0; i < n; i++) {
+    int idx = (start + i) % NUM_VALUES;
+    if (i) server.sendContent(",");
+    server.sendContent(sendNumOrNull(hums[idx]));
+  }
+  server.sendContent("],");
+
+  // vpd
+  server.sendContent("\"vpd\":[");
+  for (int i = 0; i < n; i++) {
+    int idx = (start + i) % NUM_VALUES;
+    if (i) server.sendContent(",");
+    server.sendContent(sendNumOrNull(vpds[idx]));
+  }
+  server.sendContent("],");
+
+  // water
+  server.sendContent("\"water\":[");
+  for (int i = 0; i < n; i++) {
+    int idx = (start + i) % NUM_VALUES;
+    if (i) server.sendContent(",");
+    server.sendContent(sendNumOrNull(waterTemps[idx]));
+  }
+  server.sendContent("]}");
+}
+
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
 static void taskDeferredInit(void* /*pv*/) {
   // Read full preferences (relays, run settings, shelly, notifications, etc.)
@@ -175,13 +230,16 @@ void setup() {
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
   server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
 
-  server.on("/style.css", []() { server.send(200, "text/css", cssContent); });
-  server.on("/script.js", []() { server.send(200, "application/javascript", jsContent); });
+  server.on("/style.css", []() { server.send_P(200, "text/css", cssContent); });
+  server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });
 
   server.on("/sensordata", HTTP_GET, []() {
     String jsonSensorData = readSensorData();
     server.send(200, "application/json; charset=utf-8", jsonSensorData);
   });
+
+  // history (last hour) for charts
+  server.on("/api/history", HTTP_GET, handleApiHistory);
 
   server.on("/startWatering", HTTP_POST, handleStartWatering);
   server.on("/pingTank", HTTP_POST, readTankLevel);

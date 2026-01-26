@@ -64,6 +64,7 @@ const char* htmlPage = R"rawliteral(
       <div id="headerDate"></div>
       <div id="headerTime"></div>
     </div>
+    <div class="sysstats"><span class="syslabel">CPU</span> <span id="espLoadSpan">--</span>%</div>
   </header>
   <div class="layout">
     <nav class="sidebar" id="sidebar">
@@ -194,9 +195,34 @@ const char* htmlPage = R"rawliteral(
           </div>
         </div>
       </div>
-      <div class="metrics-row averages-row">
-      <!-- ... wie oben eingefügt ... -->
-    </div>
+      <div class="spacer"></div>
+      <div class="history-head">
+        <h2 data-i18n="status.history">Verlauf (letzte Stunde)</h2>
+        <button class="btn" type="button" onclick="updateHistoryCharts(true)" data-i18n="status.refresh">Aktualisieren</button>
+      </div>
+
+      <div class="history-grid">
+        <div class="chart-card">
+          <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
+          <canvas id="chartTemp" height="110"></canvas>
+          <div class="chart-foot"><span id="chartTempMin">–</span> / <span id="chartTempMax">–</span> °C</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
+          <canvas id="chartHum" height="110"></canvas>
+          <div class="chart-foot"><span id="chartHumMin">–</span> / <span id="chartHumMax">–</span> %</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">VPD</div>
+          <canvas id="chartVpd" height="110"></canvas>
+          <div class="chart-foot"><span id="chartVpdMin">–</span> / <span id="chartVpdMax">–</span> kPa</div>
+        </div>
+        <div class="chart-card" id="chartWaterCard">
+          <div class="chart-title">%DS18B20NAME%</div>
+          <canvas id="chartWater" height="110"></canvas>
+          <div class="chart-foot"><span id="chartWaterMin">–</span> / <span id="chartWaterMax">–</span> °C</div>
+        </div>
+      </div>
 
     <h2 data-i18n="status.relayIrrigation">Bewässerungssteuerung</h2>
     <div class="relay-row" id="pumpRow">
@@ -221,10 +247,10 @@ const char* htmlPage = R"rawliteral(
       <div class="relay-card" data-relay="watering">
         <div class="relay-title" data-i18n="status.watering">Bewässerung</div>
         <div class="metric-value">
-          <span id="irrigationSpan"  style="font-size: 16px;">-</span><span class="unit" data-i18n="status.wateringLeft"> verbleibend</span>
+          <span id="irrigationSpan"  >-</span><span class="unit" data-i18n="status.wateringLeft"> verbleibend</span>
         </div>
         <div class="metric-value">
-          <span class="unit" data-i18n="status.endIn" style="font-size: 16px;">Ende in </span><span id="irTimeLeftSpan"  style="font-size: 16px;"></span>
+          <span class="unit" data-i18n="status.endIn" >Ende in </span><span id="irTimeLeftSpan"  ></span>
         </div> 
         <div class="spacermini"></div>
         <button class="primary" onclick="startWatering()">Toggle</button>
@@ -232,10 +258,10 @@ const char* htmlPage = R"rawliteral(
       <div class="relay-card" data-relay="TankFilling">
         <div class="relay-title" data-i18n="status.tank">Tank Füllung</div>
         <div class="metric-value">
-          <span id="tankLevelSpan" style="font-size: 16px;">–</span><span class="unit" style="font-size: 16px;">&nbsp;%</span>
+          <span id="tankLevelSpan" >–</span><span class="unit" >&nbsp;%</span>
         </div>
         <div class="metric-value">
-          <span id="tankCMDistanceSpan" style="font-size: 16px;">–</span><span class="unit" style="font-size: 16px;">&nbsp;cm</span>
+          <span id="tankCMDistanceSpan" >–</span><span class="unit" >&nbsp;cm</span>
         </div>
         <div class="spacermini"></div>
         <button class="primary" data-i18n="status.pingTank" onclick="pingTank()">Ping</button>
@@ -315,8 +341,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
         <div class="twoinone-label">
-          <input name="webShMainSwIP" id="shellyIP" style="width: 140px;" type="text" value="%SHMAINIP%">
-          <select name="webShMainSwKind" style="width: 80px; id="shellyMainSwHostKind">
+          <input name="webShMainSwIP" id="shellyMainSwIP" class="control-sm" type="text" inputmode="decimal" value="%SHMAINIP%">
+          <select name="webShMainSwKind" id="shellyMainSwHostKind" class="control-sm control-xs">
             <option value=""  %SHMAINSWKIND0%>----</option>
             <option value="1" %SHMAINSWKIND1%>Gen1</option>
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
@@ -328,8 +354,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizung:</label>
         <div class="twoinone-label">
-          <input name="webShellyHeatIP" id="shellyIP" style="width: 140px;" type="text" value="%SHELLYHEATERIP%">
-          <select name="webShHeatKind" style="width: 80px; id="shellyHeaterHostKind">
+          <input name="webShellyHeatIP" id="shellyHeatIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHEATERIP%">
+          <select name="webShHeatKind" id="shellyHeaterHostKind" class="control-sm control-xs">
             <option value=""  %SHHEATKIND0%>----</option>
             <option value="1" %SHHEATKIND1%>Gen1</option>
             <option value="2" %SHHEATKIND2%>Gen2</option>
@@ -341,8 +367,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIPHumidity" data-i18n="shelly.shellyIPHumidity">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
-          <input name="webShellyHumIP" id="shellyIPHumidity" style="width: 140px;" type="text" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShHumKind" style="width: 80px; id="shellyHumidifierHostKind">
+          <input name="webShellyHumIP" id="shellyHumidifierIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
+          <select name="webShHumKind" id="shellyHumidifierHostKind" class="control-sm control-xs">
             <option value=""  %SHHUMIDKIND0%>----</option>
             <option value="1" %SHHUMIDKIND1%>Gen1</option>
             <option value="2" %SHHUMIDKIND2%>Gen2</option>
@@ -354,8 +380,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shIPFan" data-i18n="shelly.shellyIPFan">Shelly IP Adresse für Ventilator:</label>
         <div class="twoinone-label">
-          <input name="webShFanIp" id="shellyIPFan" style="width: 140px;" type="text" value="%SHELLYFANIP%">
-          <select name="webShFanKind" style="width: 80px; id="shellyFanHostKind">
+          <input name="webShFanIp" id="shellyFanIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYFANIP%">
+          <select name="webShFanKind" id="shellyFanHostKind" class="control-sm control-xs">
             <option value=""  %SHFANKIND0%>----</option>
             <option value="1" %SHFANKIND1%>Gen1</option>
             <option value="2" %SHFANKIND2%>Gen2</option>
@@ -367,12 +393,12 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
-        <input name="webShUsername" id="shellyUsername" style="width: 200px;" type="text" value="%SHUSER%">
+        <input name="webShUsername" id="shellyUsername" class="control-sm" type="text" value="%SHUSER%">
       </div>
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShPassword" id="shellyPassword" style="width: 200px;" type="password" value="%SHPASSWORD%">
+        <input name="webShPassword" id="shellyPassword" class="control-sm" type="password" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>

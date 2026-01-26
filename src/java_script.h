@@ -2,7 +2,7 @@
 #pragma once
 
 // Pure JavaScript payload (no <script> tags, no HTML comments)
-const char* jsContent = R"rawliteral(
+const char jsContent[] PROGMEM = R"rawliteral(
 // === Inject i18n JSON <script type="application/json"> tags ===
 (function injectI18N(){
   const addJSON = (id, obj) => {
@@ -10,7 +10,6 @@ const char* jsContent = R"rawliteral(
     s.type = 'application/json';
     s.id   = id;
     s.textContent = JSON.stringify(obj);
-    let currentLang = localStorage.getItem('lang') || 'de';
     document.head.appendChild(s);
   };
 
@@ -48,6 +47,8 @@ const char* jsContent = R"rawliteral(
     "status.lastvpd": "akt. VPD",
     "status.targetVpd": "Soll-VPD:",
     "status.averagesLastHour": "Durchschnittswerte der letzten Stunde",
+    "status.history": "Verlauf (letzte Stunde)",
+    "status.refresh": "Aktualisieren",
     "status.avgTemperature": "Ø Temperatur",
     "status.avg": "Ø ",
     "status.avgHumidity": "Ø Luftfeuchte",
@@ -207,6 +208,8 @@ const char* jsContent = R"rawliteral(
     "shelly.shellyAuthUser": "Username: (optional)",
     "shelly.shellyAuthPassword": "Password: (optional)",
     "status.averagesLastHour": "Averages last hour",
+    "status.history": "History (last hour)",
+    "status.refresh": "Refresh",
     "status.avgWaterTemperature": "Ø",
     "status.avgHumidity": "Ø Humidity",
     "status.avgVpd": "Ø VPD",
@@ -283,22 +286,21 @@ const char* jsContent = R"rawliteral(
 // ---------- Sensor polling ----------
 window.sensorTimer = null;
 
-// ---- relay state (4 relays) ----
-let relayStates = [false, false, false, false];
+// ---- relay state (NUM_RELAYS = 8 on firmware side) ----
+const RELAY_COUNT = 8;
+let relayStates = Array(RELAY_COUNT).fill(false);
 
 // Funktion zum Aktualisieren der Sensorwerte
 window._stopSensorPoll = function () {
   if (window.sensorTimer) {
     clearInterval(window.sensorTimer);
     window.sensorTimer = null;
-    console.log('[SHELLY][JS] Sensor polling stopped');
   }
 };
 
 window._startSensorPoll = function () {
   if (!window.sensorTimer && typeof window.updateSensorValues === 'function') {
     window.sensorTimer = setInterval(window.updateSensorValues, 10000);
-    console.log('[SHELLY][JS] Sensor polling started');
   }
 };
 
@@ -382,7 +384,7 @@ function onForTenSec(nr) {
     .catch(err => {
       console.error('toggle relay failed:', err);
     });
-  };
+}
 
 // ---------- start watering ----------
 function startWatering() {
@@ -393,7 +395,7 @@ function startWatering() {
     .catch(err => {
       console.error('start watering failed:', err);
     });
-};
+}
 
 // ---------- ping tank level ----------
 function pingTank() {
@@ -404,7 +406,7 @@ function pingTank() {
     .catch(err => {
       console.error('ping tank failed:', err);
     });
-};
+}
 
 // ---------- Shelly status update ----------
 function setShellyStateClass(el, isOn) {
@@ -652,6 +654,13 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       const data = await response.json();
 
+      // ESP stats (CPU load)
+      if (typeof data.espLoadPct === 'number') {
+        setText('espLoadSpan', data.espLoadPct.toFixed(0));
+      } else {
+        setText('espLoadSpan', '--');
+      }
+
       // current
       if (isNum(data.curTemperature))        { setText('tempSpan', data.curTemperature.toFixed(1)); }
       if (isNum(data.curWaterTemperature))   { setText('waterTempSpan', data.curWaterTemperature.toFixed(1)); }
@@ -785,6 +794,131 @@ window.addEventListener('DOMContentLoaded', () => {
 
   window.updateSensorValues = updateSensorValues;
 
+  // ---------- History charts (/api/history) ----------
+  let historyTimer = null;
+
+  function getActivePageId(){
+    const p = document.querySelector('.page.active');
+    return p ? p.id : '';
+  }
+
+  function canvasHiDPI(canvas){
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || canvas.width;
+    const cssH = canvas.clientHeight || canvas.height;
+    const w = Math.max(1, Math.floor(cssW * dpr));
+    const h = Math.max(1, Math.floor(cssH * dpr));
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+
+  function computeMinMax(arr){
+    let min = Infinity, max = -Infinity, ok = 0;
+    for (const v of arr) {
+      if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
+      ok++;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (!ok) return { min: null, max: null };
+    if (min === max) { min -= 0.5; max += 0.5; }
+    return { min, max };
+  }
+
+  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals){
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    // hide if no DS18B20 chart is relevant
+    if (canvasId === 'chartWater') {
+      const card = document.getElementById('chartWaterCard');
+      if (card && (!window.DS18B20Enabled || window.DS18B20Enabled === '0')) {
+        // if backend disables DS18B20, just hide the tile
+        // (we don't know that reliably here, so we only hide when the label is empty later)
+      }
+    }
+
+    const {min, max} = computeMinMax(arr);
+    const minEl = document.getElementById(minSpanId);
+    const maxEl = document.getElementById(maxSpanId);
+    if (minEl) minEl.textContent = (min === null) ? '–' : min.toFixed(decimals);
+    if (maxEl) maxEl.textContent = (max === null) ? '–' : max.toFixed(decimals);
+
+    const ctx = canvasHiDPI(canvas);
+    const css = getComputedStyle(document.documentElement);
+    const stroke = (css.getPropertyValue('--link') || css.getPropertyValue('--text') || '#888').trim();
+    ctx.strokeStyle = stroke;
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // background grid
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    for (let i = 1; i <= 3; i++) {
+      const y = (h * i) / 4;
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    if (min === null || max === null || arr.length < 2) return;
+
+    const pad = 6;
+    const innerW = w - pad * 2;
+    const innerH = h - pad * 2;
+    const n = arr.length;
+
+    const xStep = innerW / Math.max(1, n - 1);
+    const yScale = innerH / (max - min);
+
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      const v = arr[i];
+      if (v === null || typeof v !== 'number' || !isFinite(v)) {
+        started = false;
+        continue;
+      }
+      const x = pad + xStep * i;
+      const y = pad + (max - v) * yScale;
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  }
+
+  window.updateHistoryCharts = async function(force){
+    try {
+      if (!force && getActivePageId() !== 'status') return;
+      const r = await fetch('/api/history', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!d || !Array.isArray(d.temp)) return;
+
+      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1);
+      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   0);
+      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2);
+      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1);
+    } catch (e) {
+      console.warn('history fetch failed', e);
+    }
+  };
+
+  function startHistoryPoll(){
+    if (historyTimer) return;
+    historyTimer = setInterval(() => window.updateHistoryCharts(false), 30000);
+  }
+  startHistoryPoll();
+
   function setNA(){
     setText('tempSpan', 'N/A');
     setText('waterTempSpan', 'N/A');
@@ -796,6 +930,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.updateSensorValues = updateSensorValues;
   window._startSensorPoll();     // intervall start
   window.updateSensorValues();
+  window.updateHistoryCharts(true);
 
   window.updateSensorValues = updateSensorValues;
 
