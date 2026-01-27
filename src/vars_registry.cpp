@@ -37,8 +37,17 @@ static String jStr(const String& s) {
 
 static String jMasked() { return jStr("********"); }
 
+static String g_buildTag() {
+    String tag = "\"BUILD_";
+    tag += __DATE__;  // z.B. Jan 27 2026
+    tag += "_";
+    tag += __TIME__;  // z.B. 14:52:10
+    tag += "\"";
+    return tag;
+}
+
+
 // -------------- getters --------------
-static String g_buildTag() { return "\"REG_OK_2026-01-26\""; }
 
 static String g_uptime() { return jUInt((uint32_t)(millis() / 1000UL)); }
 static String g_heap() { return jUInt((uint32_t)ESP.getFreeHeap()); }

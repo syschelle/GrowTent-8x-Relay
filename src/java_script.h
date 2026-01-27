@@ -839,7 +839,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Draws a series of data into a canvas element
-  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals, targetValue){
+  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals, targetValue, intervalSec){
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
@@ -869,8 +869,8 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.clearRect(0, 0, w, h);
 
   // --- Layout: Platz links für Skala ---
-  const padTop = 6, padRight = 6, padBottom = 6;
-  const padLeft = 44; // Platz für Y-Achsenwerte
+  const padTop = 6, padRight = 6, padBottom = 22; // extra space for X-axis labels
+  const padLeft = 44; // Platz für Zahlen links (bei Bedarf 50 machen)
 
   const innerW = w - padLeft - padRight;
   const innerH = h - padTop - padBottom;
@@ -888,12 +888,13 @@ window.addEventListener('DOMContentLoaded', () => {
     return nice * pow10;
   }
 
-  // Grid + Y-Achsen-Labels
+  // background grid + Y-Achsen-Labels
   ctx.save();
-  const ticks = 4;
+  const ticks = 4; // 4 Zwischenlinien
   const range = (max2 - min2);
   const step = niceStep(range, ticks);
 
+  // Ticks so wählen, dass sie "rund" sind
   const yMinTick = Math.floor(min2 / step) * step;
   const yMaxTick = Math.ceil(max2 / step) * step;
 
@@ -901,24 +902,25 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
+  // Grid-Linien + Labels
   for (let v = yMinTick; v <= yMaxTick + 0.000001; v += step) {
-    const t = (v - min2) / (max2 - min2);
-    const y = padTop + innerH * (1 - t);
+    const t = (v - min2) / (max2 - min2);         // 0..1
+    const y = padTop + innerH * (1 - t);          // invertiert (oben max)
 
-    // Grid-Linie
+    // Linie
     ctx.globalAlpha = 0.20;
     ctx.beginPath();
     ctx.moveTo(padLeft, y);
     ctx.lineTo(w - padRight, y);
     ctx.stroke();
 
-    // Label
+    // Label links
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = stroke;
     ctx.fillText(v.toFixed(decimals), padLeft - 6, y);
   }
 
-  // Y-Achse links
+  // Y-Achse (links)
   ctx.globalAlpha = 0.35;
   ctx.beginPath();
   ctx.moveTo(padLeft, padTop);
@@ -931,6 +933,44 @@ window.addEventListener('DOMContentLoaded', () => {
   const n = arr.length;
   const xStep = innerW / Math.max(1, n - 1);
   const yScale = innerH / (max2 - min2);
+
+  // ---- X-axis (relative time) ----
+  // Uses /api/history intervalSec; shows minutes ago -> now.
+  if (intervalSec && isFinite(intervalSec) && intervalSec > 0) {
+    ctx.save();
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = stroke;
+
+    const axisY = h - padBottom;
+
+    // bottom axis line
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, axisY);
+    ctx.lineTo(w - padRight, axisY);
+    ctx.stroke();
+
+    // labels
+    ctx.globalAlpha = 0.85;
+    const ticksX = 4; // start, 1/3, 2/3, end
+    for (let t = 0; t < ticksX; t++) {
+      const frac = t / (ticksX - 1);
+      const i = Math.round(frac * (n - 1));
+      const x = padLeft + xStep * i;
+
+      const secondsAgo = (n - 1 - i) * intervalSec;
+      const minutesAgo = Math.round(secondsAgo / 60);
+      const labelNow = (currentLang === 'de') ? 'jetzt' : 'now';
+      const txt = (i === n - 1) ? labelNow : `-${minutesAgo}m`;
+
+      ctx.fillText(txt, x, axisY + 4);
+    }
+
+    ctx.restore();
+  }
+
 
   // ---- Soll-Linie (gestrichelt) ----
   if (tOk) {
@@ -946,7 +986,11 @@ window.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  // Datenlinie
+  // Datenlinie (IST-Wert) -> ROT
+  ctx.save();
+  ctx.strokeStyle = 'red';
+  ctx.lineWidth = 2;
+
   ctx.beginPath();
   let started = false;
   for (let i = 0; i < n; i++) {
@@ -965,6 +1009,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
   ctx.stroke();
+  ctx.restore();
+
 }
 
 
@@ -976,10 +1022,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const d = await r.json();
       if (!d || !Array.isArray(d.temp)) return;
 
-      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1, d.targetTempC);
-      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   0, null);
-      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2, d.targetVpdKpa);
-      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1, null);
+      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1, d.targetTempC, d.intervalSec);
+      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   1, null, d.intervalSec);
+      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2, d.targetVpdKpa, d.intervalSec);
+      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1, null, d.intervalSec);
     } catch (e) {
       console.warn('history fetch failed', e);
     }
