@@ -147,10 +147,10 @@ const VarItem VARS[] = {
   {"wifi.ssid", g_ssid, false, "wifi"},
 
   // --- sensors ---
-  {"sensors.temperatureC", g_temp, false, "sensors"},
-  {"sensors.humidityPct", g_hum, false, "sensors"},
-  {"sensors.extTempC", g_extTemp, false, "sensors"},
-  {"sensors.vpdKpa", g_vpd, false, "sensors"},
+  {"sensors.cur.temperatureC", g_temp, false, "sensors"},
+  {"sensors.cur.humidityPct", g_hum, false, "sensors"},
+  {"sensors.cur.extTempC", g_extTemp, false, "sensors"},
+  {"sensors.cur.vpdKpa", g_vpd, false, "sensors"},
 
   // --- targets ---
   {"targets.tempC", g_tgtTemp, false, "targets"},
@@ -162,12 +162,6 @@ const VarItem VARS[] = {
   {"tank.levelCm", g_tankCm, false, "tank"},
   {"tank.minPct", g_tankMin, false, "tank"},
   {"tank.maxPct", g_tankMax, false, "tank"},
-
-  // --- averages (1h) ---
-  {"avg.tempC", g_avgTemp, false, "avg"},
-  {"avg.humPct", g_avgHum, false, "avg"},
-  {"avg.vpdKpa", g_avgVpd, false, "avg"},
-  {"avg.waterTempC", g_avgWater, false, "avg"},
 
   // --- settings.ui ---
   {"settings.ui.boxName", g_ui_box, false, "settings.ui"},
@@ -190,13 +184,22 @@ const VarItem VARS[] = {
 
   // --- notifications ---
   {"settings.notify.pushoverEnabled", g_notify_pushoverEnabled, false, "settings.notify"},
+  {"settings.notify.pushoverAppKey", g_notify_pushoverAppKey, true, "settings.notify"},
+  {"settings.notify.pushoverUserKey", g_notify_pushoverUserKey, true, "settings.notify"},
+  {"settings.notify.pushoverDevice", g_notify_pushoverDevice, false, "settings.notify"},
   {"settings.notify.gotifyEnabled", g_notify_gotifyEnabled, false, "settings.notify"},
+  {"settings.notify.gotifyServer", g_notify_gotifyServer, false, "settings.notify"},
+  {"settings.notify.gotifyToken", g_notify_gotifyToken, true, "settings.notify"},
 
   // --- shelly ---
   {"settings.shelly.main.ip", g_sh_main_ip, false, "settings.shelly"},
+  {"settings.shelly.main.gen", g_sh_main_gen, false, "settings.shelly"},
   {"settings.shelly.heat.ip", g_sh_heat_ip, false, "settings.shelly"},
+  {"settings.shelly.heat.gen", g_sh_heat_gen, false, "settings.shelly"},
   {"settings.shelly.hum.ip", g_sh_hum_ip, false, "settings.shelly"},
+  {"settings.shelly.hum.gen", g_sh_hum_gen, false, "settings.shelly"},
   {"settings.shelly.fan.ip", g_sh_fan_ip, false, "settings.shelly"},
+  {"settings.shelly.fan.gen", g_sh_fan_gen, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 

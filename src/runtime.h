@@ -62,12 +62,6 @@ extern void compactLog();
 // forward declaration for calcVPD (defined elsewhere)
 float calcVPD(float temperatureC, float leafOffset, float humidityPct);
 
-// Forward declarations for average helper functions used by handleRoot
-float avgTemp();
-float avgHum();
-float avgVPD();
-float avgWaterTemp();
-
 // Handle root path "/"
 void handleRoot() {
   
@@ -141,12 +135,7 @@ void handleRoot() {
     html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
     html.replace("%TARGETVPD%",  String(target.targetVpdKpa, 1));
-    html.replace("%AVGTEMP%", String(avgTemp(), 1));
-    html.replace("%AVGWATERTEMP%",  String(avgWaterTemp(), 1));
-    html.replace("%AVGHUM%",  String(avgHum(), 0));
-    
-    html.replace("%AVGHUM%",  String(avgHum(), 0));
-    html.replace("%AVGVPD%",  String(avgVPD(), 1));
+
     html.replace("%RELAYNAMES1%", String(relayNames[0]));
     html.replace("%RELAYNAMES2%", String(relayNames[1]));
     html.replace("%RELAYNAMES3%", String(relayNames[2]));
@@ -300,7 +289,7 @@ void readPreferences() {
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
   loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
-  loadPrefFloat(KEY_TARGETVPD, targetVPD, 1.0f, true, "targetVPD");
+  loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
   loadPrefInt(KEY_AMOUNTOFWATER, amountOfWater, 20, true, "amountOfWater");
   loadPrefInt(KEY_IRRIGATION, irrigation, 500, true, "irrigation");
   loadPrefInt(KEY_TIMEPERTASK, timePerTask, 10, true, "timePerTask");
@@ -367,10 +356,6 @@ void readPreferences() {
 // Forward declaration so this header can call the function defined later
 String readSensorData();
 void calculateTimeSince(const String& startDate, int& daysSinceStartInt, int& weeksSinceStartInt);
-float avgTemp();
-float avgHum();
-float avgVPD();
-float avgWaterTemp();
 
 // Forward-declare notification functions used before their definitions
 bool sendPushover(const String& message, const String& title);
@@ -551,26 +536,6 @@ auto getCpuLoadPct = []() -> float {
     json += "\"curTimeLeftIrrigation\":\"" + String(wTimeLeft) +  "\",\n";
   } else {
     json += "\"curTimeLeftIrrigation\":null,\n";
-  }
-  if (!isnan(avgTemp())) {
-    json += "\"avgTemperature\":" + String(avgTemp(), 1)  + ",\n";
-  } else {
-    json += "\"avgTemperature\":null,\n";
-  }
-  if (!isnan(avgWaterTemp())) {
-    json += "\"avg" + DS18B20Name + "\":" + String(avgWaterTemp(), 1) + ",\n";
-  } else {
-    json += "\"avg" + DS18B20Name + "\":null,\n";
-  }
-  if (!isnan(avgHum())) {
-    json += "\"avgHumidity\":" + String(avgHum(), 0) + ",\n";
-  } else {
-    json += "\"avgHumidity\":null,\n";
-  }
-  if (!isnan(avgVPD())) {
-    json += "\"avgVpd\":" + String(avgVPD(), 1) + ",\n";
-  } else {
-    json += "\"avgVpd\":null,\n";
   }
 
   // ---- relays ----

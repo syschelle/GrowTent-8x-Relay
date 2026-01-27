@@ -666,11 +666,6 @@ void addReading(float temp, float hum, float vpd) {
   }
 }
 
-float avgTemp() { return tempAvg.avg(); } 
-float avgHum()  { return humAvg.avg(); }
-float avgVPD()  { return vpdAvg.avg(); }
-float avgWaterTemp() { return waterTempAvg.avg(); }
-
 // check HCSR04 sensor
 float pingTankLevel(uint8_t trigPin, uint8_t echoPin,
                      uint32_t timeout_us = 30000,   // ~5m max, praktisch weniger

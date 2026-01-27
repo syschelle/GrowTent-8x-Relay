@@ -162,66 +162,47 @@ const char* htmlPage = R"rawliteral(
           </div>
         </div>
       </div>
-      <h2 data-i18n="status.averagesLastHour">Durchschnittswerte der letzten Stunde</h2>
-      <div class="metrics-row averages-row">
-        <div class="metric">
-          <div class="twoinone-label">
-            <div class="metric-label" data-i18n="status.avgTemperature">Ø Temperatur</div>
-            <div class="metric-value">
-              <span id="avgTempSpan">%AVGTEMP%</span><span class="unit">°C</span>
-            </div>
-          </div>
-          <div class="spacer"></div>
-          <div class="twoinone-label">
-            <div class="metric-label">Ø</div><div class="metric-label">%DS18B20NAME%</div>
-            <div class="metric-value">
-              <span id="avgWaterTempSpan">%AVGWATERTEMP%</span><span class="unit">°C</span>
-            </div>
-          </div>
-        </div>
-        <div class="metric">
-          <div class="twoinone-label">
-            <div class="metric-label" data-i18n="status.avgHumidity">Ø rel. Feuchte</div>
-            <div class="metric-value">
-              <span id="avgHumSpan">%AVGHUM%</span><span class="unit">%</span>
-            </div>
-          </div>
-        </div>
-        <div class="metric">
-          <div class="twoinone-label">
-            <div class="metric-label" data-i18n="status.avgVpd">Ø VPD</div>
-            <div class="metric-value">
-              <span id="avgVpdSpan">%AVGVPD%</span><span class="unit">kPa</span>
-            </div>
-          </div>
-        </div>
-      </div>
       <div class="spacer"></div>
       <div class="history-head">
         <h2 data-i18n="status.history">Verlauf (letzte Stunde)</h2>
         <button class="btn" type="button" onclick="updateHistoryCharts(true)" data-i18n="status.refresh">Aktualisieren</button>
       </div>
-
       <div class="history-grid">
         <div class="chart-card">
           <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
           <canvas id="chartTemp" height="110"></canvas>
-          <div class="chart-foot"><span id="chartTempMin">–</span> / <span id="chartTempMax">–</span> °C</div>
+          <div class="chart-foot">
+            Min:&nbsp;<span id="chartTempMin">–</span>
+            &nbsp;&nbsp; Avg:&nbsp;<span id="chartTempAvg">–</span>
+            &nbsp;&nbsp; Max:&nbsp;<span id="chartTempMax">–</span> °C
+          </div>
         </div>
         <div class="chart-card">
           <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
           <canvas id="chartHum" height="110"></canvas>
-          <div class="chart-foot"><span id="chartHumMin">–</span> / <span id="chartHumMax">–</span> %</div>
+          <div class="chart-foot">
+            Min:&nbsp;<span id="chartHumMin">–</span>
+            &nbsp;&nbsp; Avg:&nbsp;<span id="chartHumAvg">–</span>
+            &nbsp;&nbsp; Max:&nbsp;<span id="chartHumMax">–</span> %
+          </div>
         </div>
         <div class="chart-card">
           <div class="chart-title">VPD</div>
           <canvas id="chartVpd" height="110"></canvas>
-          <div class="chart-foot"><span id="chartVpdMin">–</span> / <span id="chartVpdMax">–</span> kPa</div>
+          <div class="chart-foot">
+            Min:&nbsp;<span id="chartVpdMin">–</span>
+            &nbsp;&nbsp; Avg:&nbsp;<span id="chartVpdAvg">–</span>
+            &nbsp;&nbsp; Max:&nbsp;<span id="chartVpdMax">–</span> kPa
+          </div>
         </div>
         <div class="chart-card" id="chartWaterCard">
           <div class="chart-title">%DS18B20NAME%</div>
           <canvas id="chartWater" height="110"></canvas>
-          <div class="chart-foot"><span id="chartWaterMin">–</span> / <span id="chartWaterMax">–</span> °C</div>
+          <div class="chart-foot">
+            Min:&nbsp;<span id="chartWaterMin">–</span>
+            &nbsp;&nbsp; Avg:&nbsp;<span id="chartWaterAvg">–</span>
+            &nbsp;&nbsp; Max:&nbsp;<span id="chartWaterMax">–</span> °C
+          </div>
         </div>
       </div>
 

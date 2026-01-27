@@ -21,270 +21,275 @@ const char jsContent[] PROGMEM = R"rawliteral(
     ]
   });
 
-  addJSON('i18n-de', {
-    "a11y.menu": "Menü öffnen/schließen",
-    "info.Grow": "Aktueller Grow",
-    "info.Days": "Tage",
-    "info.Weeks": "Wochen",
-    "info.growLine": "Grow seit: {days} {daysLabel} | {weeks} {weeksLabel}",
-    "settings.unsaved": "Änderungen – bitte speichern",
-    "nav.status": "Status",
-    "nav.runsetting": "Betriebseinstellungen",
-    "nav.shelly": "Shelly Einstellungen",
-    "nav.settings": "Systemeinstellungen",
-    "nav.message": "Push-Einstellungen",
-    "nav.logging": "Systemprotokoll",
-    "nav.factory": "Werkseinstellungen",
-    "status.title": "Status",
-    "status.updated": "Letztes Update:",
-    "status.download": "History herunterladen",
-    "status.delete": "History löschen",
-    "status.currentValues": "Aktuelle Werte",
-    "status.temperature": "Temperatur",
-    "status.targetTemp": "Soll-Temperatur",
-    "status.last": "akt. ",
-    "status.humidity": "Luftfeuchte",
-    "status.lastvpd": "akt. VPD",
-    "status.targetVpd": "Soll-VPD:",
-    "status.averagesLastHour": "Durchschnittswerte der letzten Stunde",
-    "status.history": "Verlauf (letzte Stunde)",
-    "status.refresh": "Aktualisieren",
-    "status.avgTemperature": "Ø Temperatur",
-    "status.avg": "Ø ",
-    "status.avgHumidity": "Ø Luftfeuchte",
-    "status.avgVpd": "Ø VPD",
-    "status.relayControl": "Relais Steuerung",
-    "status.toggleRelay": "umschalten",
-    "status.relayIrrigation": "Bewässerungssteuerung",
-    "status.irrigationPump1": "Pumpe 1",
-    "status.irrigationPump2": "Pumpe 2",
-    "status.irrigationPump3": "Pumpe 3",
-    "status.watering": "Bewässerung",
-    "status.startWatering": "starten",
-    "status.stopWatering": "stoppen",
-    "status.wateringLeft": "verbleibend",
-    "status.endIn": "Ende in",
-    "status.startWatering": "Start",
-    "status.tank": "Tank Füllung",
-    "status.pingTank": "prüfen",
-    "status.shellyControl": "Shelly Steuerung",
-    "status.shellyMainSw": "Hauptschalter",
-    "status.shellyHeater": "Heizung",
-    "status.shellyHumidifier": "Luftbefeuchter",
-    "status.shellyFan": "Ventilator",
-    "status.relayOn": "einschalten (10s)",
-    "runsetting.title": "Betriebseinstellungen",
-    "runsetting.startGrow": "Startdatum:",
-    "runsetting.startFlower": "Startdatum Blüte:",
-    "runsetting.startDry": "Startdatum Trocknung:",
-    "runsetting.phase": "aktuelle Phase:",
-    "runsetting.phase.grow": "VEGETATIV",
-    "runsetting.phase.flower": "BLÜTE",
-    "runsetting.phase.dry": "TROCKNUNG",
-    "runsetting.targetTemp": "Soll-Temperatur",
-    "runsetting.offsetLeafTemperature": "Offset Blatttemperatur:",
-    "runsetting.targetVPD": "Soll-VPD",
-    "runsetting.wateringSettings": "Bewässerungseinstellung",
-    "runsetting.amountOfWater": "Wassermenge nach 10 Sekunden:",
-    "runsetting.timePerTask": "Bewässerungszeit pro Task:",
-    "runsetting.betweenTasks": "Pause zwischen Bewässerungen:",
-    "runsetting.irrigation": "gesamte Bewässerungsmenge:",
-    "runsetting.relayIrrigation": "Bewässerungssteuerung",
-    "runsetting.relayScheduling": "Relais Zeitsteuerung",
-    "runsetting.relay.enable": "Aktivieren:",
-    "runsetting.relay.start": "Start:",
-    "runsetting.relay.stop": "Stopp:",
-    "shelly.title": "Shelly Einstellungen",
-    "shelly.shellyIP": "Shelly IP Adresse:",
-    "shelly.shellyIPHeater": "Shelly IP Heizung:",
-    "shelly.shellyIPHumidity": "Shelly IP Luftbefeuchter:",
-    "shelly.shellyIPDehumidifier": "Shelly IP Luftentfeuchter:",
-    "status.shellyAuth": "Authentifizierung",
-    "shelly.shellyUsername": "Shelly Benutzername (optional):",
-    "shelly.shellyPassword": "Shelly Passwort (optional):",
-    "shelly.shellyIPNames": "Shelly Gerätenamen:",
-    "shelly.shellyIPNamesHeater": "Heizung:",
-    "settings.title": "Systemeinstellungen",
-    "settings.debugEnabled": "Debug aktivieren",
-    "settings.boxName": "Boxname:",
-    "settings.boxName.ph": "z. B. Growtent-1",
-    "settings.ntpserver": "NTP-Server:",
-    "settings.ntpserver.ph": "z. B. de.pool.ntp.org",
-    "settings.timeZoneInfo": "Zeitzone:",
-    "settings.timeZoneInfo.ph": "z.B. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
-    "settings.language": "Sprache:",
-    "settings.theme": "Theme:",
-    "settings.themeLight": "Hell",
-    "settings.themeDark": "Dunkel",
-    "settings.dateFormat": "Datumsformat:",
-    "settings.df_ymd": "YYYY-MM-DD",
-    "settings.df_dmy": "DD.MM.YYYY",
-    "settings.timeFormat": "Zeitformat:",
-    "settings.tf_HHmm": "24h",
-    "settings.tf_hhmma": "12h AM/PM",
-    "settings.save": "Speichern",
-    "settings.tempUnit": "Temperatur-Einheit:",
-    "settings.celsius": "°C (Celsius)",
-    "settings.fahrenheit": "°F (Fahrenheit)",
-    "settings.DS18B20": "DS18B20 Sensor",
-    "settings.DS18B20Address": "DS18B20 Name:",
-    "settings.relaySettings": "Relais Einstellungen",
-    "settings.relay1": "Relaisname 1:",
-    "settings.relay2": "Relaisname 2:",
-    "settings.relay3": "Relaisname 3:",
-    "settings.relay4": "Relaisname 4:",
-    "settings.relay5": "Relaisname 5:",
-    "settings.relay6": "Bewässerung 1:",
-    "settings.relay7": "Bewässerung 2:",
-    "settings.relay8": "Bewässerung 3:",
-    "message.title": "Nachrichteneinstellungen",
-    "message.enabled": "aktivieren",
-    "message.pushoverUserKey": "Pushover Benutzer:",
-    "message.pushoverUserKey.ph": "Your User Key",
-    "message.pushoverAppKey": "Pushover App Token:",
-    "message.pushoverAppKey.ph": "API Token/Key",
-    "message.pushoverDevice": "Pushover Gerät (optional):",
-    "message.pushoverDevice.ph": "z. B. mein-telefon",
-    "message.gotifyServer": "Gotify Server URL:",
-    "message.gotifyUrl.ph": "z. B. https://gotify.me/message",
-    "message.gotifyToken": "Gotify App Token:",
-    "message.gotifyToken.ph": "z. B. a1b2c3",
-    "vars.variables": "Variablen",
-    "vars.hint": "Debug-Ansicht: alle registrierten Werte (automatisch aus /api/state). Tokens/Passwörter werden maskiert.",
-    "logging.title": "Systemprotokoll",
-    "factory.title": "Werkseinstellungen",
-    "factory.reset": "Zurücksetzen / Neustart"
+  addJSON('i18n', {
+
+  /* -------------------- a11y / info -------------------- */
+  "a11y.menu": { de: "Menü öffnen/schließen", en: "Open/close menu" },
+
+  "info.Grow": { de: "Aktueller Grow", en: "Current Grow" },
+  "info.Days": { de: "Tage", en: "Days" },
+  "info.Weeks": { de: "Wochen", en: "Weeks" },
+  "info.growLine": {
+    de: "Grow seit: {days} {daysLabel} | {weeks} {weeksLabel}",
+    en: "Growing since: {days} {daysLabel} | {weeks} {weeksLabel}"
+  },
+
+  "settings.unsaved": {
+    de: "Änderungen – bitte speichern",
+    en: "Changes pending – please save"
+  },
+
+  /* -------------------- Navigation -------------------- */
+  "nav.status":      { de: "Status", en: "Status" },
+  "nav.runsetting":  { de: "Betriebseinstellungen", en: "Operating Settings" },
+  "nav.shelly":      { de: "Shelly Einstellungen", en: "Shelly Settings" },
+  "nav.settings":    { de: "Systemeinstellungen", en: "System Settings" },
+  "nav.message":     { de: "Push-Einstellungen", en: "Push Settings" },
+  "nav.logging":     { de: "Systemprotokoll", en: "System Log" },
+  "nav.factory":     { de: "Werkseinstellungen", en: "Factory Reset" },
+
+  /* -------------------- Status -------------------- */
+  "status.title": { de: "Status", en: "Status" },
+  "status.updated": { de: "Letztes Update:", en: "Last update:" },
+  "status.download": { de: "History herunterladen", en: "Download History" },
+  "status.delete": { de: "History löschen", en: "Delete History" },
+  "status.currentValues": { de: "Aktuelle Werte", en: "Current values" },
+
+  "status.temperature": { de: "Temperatur", en: "Temperature" },
+  "status.targetTemp": { de: "Soll-Temperatur", en: "Target temperature" },
+  "status.last": { de: "akt. ", en: "current " },
+
+  "status.lastWaterTemperature": {
+    de: "akt. Wassertemperatur",
+    en: "current Water Temperature"
+  },
+
+  "status.humidity": { de: "Luftfeuchte", en: "Humidity" },
+  "status.lastvpd": { de: "akt. VPD", en: "current VPD" },
+  "status.targetVpd": { de: "Soll-VPD:", en: "Target VPD" },
+
+  "status.averagesLastHour": {
+    de: "Durchschnittswerte der letzten Stunde",
+    en: "Averages last hour"
+  },
+  "status.history": { de: "Verlauf (letzte Stunde)", en: "History (last hour)" },
+  "status.refresh": { de: "Aktualisieren", en: "Refresh" },
+
+  "status.avgTemperature": { de: "Ø Temperatur", en: "Ø Temperature" },
+  "status.avgHumidity": { de: "Ø Luftfeuchte", en: "Ø Humidity" },
+  "status.avgVpd": { de: "Ø VPD", en: "Ø VPD" },
+  "status.avg": { de: "Ø ", en: "Ø " },
+  "status.avgWaterTemperature": {
+    de: "Ø Wassertemperatur",
+    en: "Ø Water temperature"
+  },
+
+  /* Relay / Irrigation */
+  "status.relayControl": { de: "Relais Steuerung", en: "Relay Control" },
+  "status.toggleRelay": { de: "umschalten", en: "toggle" },
+  "status.toggleRelayLabel": { de: "umschalten", en: "toggle" },
+
+  "status.relayIrrigation": {
+    de: "Bewässerungssteuerung",
+    en: "Irrigation Control"
+  },
+
+  "status.irrigationPump1": { de: "Pumpe 1", en: "Pump 1" },
+  "status.irrigationPump2": { de: "Pumpe 2", en: "Pump 2" },
+  "status.irrigationPump3": { de: "Pumpe 3", en: "Pump 3" },
+
+  "status.watering": { de: "Bewässerung", en: "Irrigation" },
+
+  "status.startWateringBtn": { de: "starten", en: "start" },
+  "status.startWateringLabel": { de: "Start", en: "Start" },
+
+  "status.stopWatering": { de: "stoppen", en: "stop" },
+  "status.wateringLeft": { de: "verbleibend", en: "left" },
+  "status.endIn": { de: "Ende in", en: "end in" },
+
+  "status.tank": { de: "Tank Füllung", en: "Tank Level" },
+  "status.pingTank": { de: "prüfen", en: "check" },
+
+  /* Shelly */
+  "status.shellyControl": { de: "Shelly Steuerung", en: "Shelly Control" },
+  "status.shellyMainSw": { de: "Hauptschalter", en: "Main Switch" },
+  "status.shellyHeater": { de: "Heizung", en: "Heater" },
+  "status.shellyHumidifier": { de: "Luftbefeuchter", en: "Humidifier" },
+  "status.shellyFan": { de: "Ventilator", en: "Fan" },
+  "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
+  "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },
+
+  "status.relayOn": { de: "einschalten (10s)", en: "turn on (10s)" },
+
+  /* -------------------- runsetting.* -------------------- */
+  "runsetting.title": { de: "Betriebseinstellungen", en: "Operating settings" },
+  "runsetting.startGrow": { de: "Startdatum:", en: "Start Date:" },
+  "runsetting.startFlower": { de: "Startdatum Blüte:", en: "Start Flowering Date:" },
+  "runsetting.startDry": { de: "Startdatum Trocknung:", en: "Start Drying Date:" },
+
+  "runsetting.phase": { de: "aktuelle Phase:", en: "Current Phase:" },
+  "runsetting.phase.grow": { de: "VEGETATIV", en: "VEGETATIVE" },
+  "runsetting.phase.flower": { de: "BLÜTE", en: "FLOWERING" },
+  "runsetting.phase.dry": { de: "TROCKNUNG", en: "DRYING" },
+
+  "runsetting.targetTemp": { de: "Soll-Temperatur", en: "Target temperature" },
+  "runsetting.offsetLeafTemperature": {
+    de: "Offset Blatttemperatur:",
+    en: "Offset leaf temperature"
+  },
+  "runsetting.targetVPD": { de: "Soll-VPD", en: "Target VPD" },
+
+  "runsetting.wateringSettings": {
+    de: "Bewässerungseinstellung",
+    en: "Irrigation Settings"
+  },
+  "runsetting.amountOfWater": {
+    de: "Wassermenge nach 10 Sekunden:",
+    en: "Amount of water after 10 seconds:"
+  },
+  "runsetting.timePerTask": {
+    de: "Bewässerungszeit pro Task:",
+    en: "Irrigation time per task"
+  },
+  "runsetting.betweenTasks": {
+    de: "Pause zwischen Bewässerungen:",
+    en: "Pause between irrigations:"
+  },
+  "runsetting.irrigation": {
+    de: "gesamte Bewässerungsmenge:",
+    en: "total amount of irrigation:"
+  },
+
+  "runsetting.relayIrrigation": {
+    de: "Bewässerungssteuerung",
+    en: "Irrigation Control"
+  },
+  "runsetting.relayScheduling": {
+    de: "Relais Zeitsteuerung",
+    en: "Relay Scheduling"
+  },
+  "runsetting.relay.enable": { de: "Aktivieren:", en: "Enable:" },
+  "runsetting.relay.start": { de: "Start:", en: "Start:" },
+  "runsetting.relay.stop": { de: "Stopp:", en: "Stop:" },
+
+  /* -------------------- shelly.* -------------------- */
+  "shelly.title": { de: "Shelly Einstellungen", en: "Shelly Settings" },
+  "shelly.shellyIP": { de: "Shelly IP Adresse:", en: "Shelly IP address:" },
+  "shelly.shellyIPHeater": { de: "Shelly IP Heizung:", en: "Shelly IP Heater:" },
+  "shelly.shellyIPHumidity": {
+    de: "Shelly IP Luftbefeuchter:",
+    en: "Shelly IP Humidifier:"
+  },
+  "shelly.shellyIPDehumidifier": {
+    de: "Shelly IP Luftentfeuchter:",
+    en: "Shelly IP Dehumidifier:"
+  },
+
+  "shelly.shellyUsername": {
+    de: "Shelly Benutzername (optional):",
+    en: "Username (optional):"
+  },
+  "shelly.shellyPassword": {
+    de: "Shelly Passwort (optional):",
+    en: "Password (optional):"
+  },
+
+  "shelly.shellyIPNames": { de: "Shelly Gerätenamen:", en: "Shelly device names:" },
+  "shelly.shellyIPNamesHeater": { de: "Heizung:", en: "Heater:" },
+
+  /* -------------------- settings.* -------------------- */
+  "settings.title": { de: "Systemeinstellungen", en: "Settings" },
+  "settings.debugEnabled": { de: "Debug aktivieren", en: "Enable debug" },
+
+  "settings.boxName": { de: "Boxname:", en: "Box name:" },
+  "settings.boxName.ph": { de: "z. B. Growtent-1", en: "e.g. Growtent-1" },
+
+  "settings.ntpserver": { de: "NTP-Server:", en: "NTP server:" },
+  "settings.ntpserver.ph": { de: "z. B. de.pool.ntp.org", en: "e.g. pool.ntp.org" },
+
+  "settings.timeZoneInfo": { de: "Zeitzone:", en: "Time zone:" },
+  "settings.timeZoneInfo.ph": {
+    de: "z.B. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
+    en: "e.g. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00"
+  },
+
+  "settings.language": { de: "Sprache:", en: "Language:" },
+  "settings.theme": { de: "Theme:", en: "Theme:" },
+  "settings.themeLight": { de: "Hell", en: "Light" },
+  "settings.themeDark": { de: "Dunkel", en: "Dark" },
+
+  "settings.dateFormat": { de: "Datumsformat:", en: "Date format:" },
+  "settings.df_ymd": { de: "YYYY-MM-DD", en: "YYYY-MM-DD" },
+  "settings.df_dmy": { de: "DD.MM.YYYY", en: "DD.MM.YYYY" },
+
+  "settings.timeFormat": { de: "Zeitformat:", en: "Time format:" },
+  "settings.tf_HHmm": { de: "24h", en: "24h" },
+  "settings.tf_hhmma": { de: "12h AM/PM", en: "12h AM/PM" },
+
+  "settings.save": { de: "Speichern", en: "Save" },
+
+  "settings.tempUnit": { de: "Temperatur-Einheit:", en: "Temperature unit:" },
+  "settings.celsius": { de: "°C (Celsius)", en: "°C (Celsius)" },
+  "settings.fahrenheit": { de: "°F (Fahrenheit)", en: "°F (Fahrenheit)" },
+
+  "settings.DS18B20": { de: "DS18B20 Sensor", en: "DS18B20 Sensor" },
+  "settings.DS18B20Address": { de: "DS18B20 Name:", en: "DS18B20 Name:" },
+
+  "settings.relaySettings": {
+    de: "Relais Einstellungen",
+    en: "Relay Settings"
+  },
+  "settings.relay1": { de: "Relaisname 1:", en: "Relay name 1:" },
+  "settings.relay2": { de: "Relaisname 2:", en: "Relay name 2:" },
+  "settings.relay3": { de: "Relaisname 3:", en: "Relay name 3:" },
+  "settings.relay4": { de: "Relaisname 4:", en: "Relay name 4:" },
+  "settings.relay5": { de: "Relaisname 5:", en: "Relay name 5:" },
+  "settings.relay6": { de: "Bewässerung 1:", en: "Irrigation 1:" },
+  "settings.relay7": { de: "Bewässerung 2:", en: "Irrigation 2:" },
+  "settings.relay8": { de: "Bewässerung 3:", en: "Irrigation 3:" },
+
+  /* -------------------- message.* -------------------- */
+  "message.title": { de: "Nachrichteneinstellungen", en: "Message Settings" },
+  "message.enabled": { de: "aktivieren", en: "Enable" },
+
+  "message.pushoverSettings": { de: "Pushover Einstellungen", en: "Pushover settings" },
+  "message.pushoverUserKey": { de: "Pushover Benutzer:", en: "Pushover User:" },
+  "message.pushoverUserKey.ph": { de: "Your User Key", en: "Your User Key" },
+
+  "message.pushoverAppKey": { de: "Pushover App Token:", en: "Pushover App Token:" },
+  "message.pushoverAppKey.ph": { de: "API Token/Key", en: "API Token/Key" },
+
+  "message.pushoverDevice": {
+    de: "Pushover Gerät (optional):",
+    en: "Pushover Device (optional):"
+  },
+  "message.pushoverDevice.ph": { de: "z. B. mein-telefon", en: "e.g. my-phone" },
+
+  "message.gotifySettings": { de: "Gotify Einstellungen", en: "Gotify settings" },
+  "message.gotifyServer": { de: "Gotify Server URL:", en: "Gotify Server URL:" },
+  "message.gotifyUrl.ph": {
+    de: "z. B. https://gotify.me/message",
+    en: "e.g. https://gotify.me/message"
+  },
+
+  "message.gotifyToken": { de: "Gotify App Token:", en: "Gotify App Token:" },
+  "message.gotifyToken.ph": { de: "z. B. a1b2c3", en: "e.g. a1b2c3" },
+
+  /* -------------------- Vars / Logging / Factory -------------------- */
+  "vars.variables": { de: "Variablen", en: "Variables" },
+  "vars.hint": {
+    de: "Debug-Ansicht: alle registrierten Werte (automatisch aus /api/state). Tokens/Passwörter werden maskiert.",
+    en: "Debug view: all registered values (automatically from /api/state). Tokens/passwords are masked."
+  },
+
+  "logging.title": { de: "Systemprotokoll", en: "Logging Settings" },
+
+  "factory.title": { de: "Werkseinstellungen", en: "Factory Settings" },
+  "factory.reset": { de: "Zurücksetzen / Neustart", en: "Reset / Restart" }
+
   });
 
-  addJSON('i18n-en', {
-    "a11y.menu": "Open/close menu",
-    "info.Grow": "Current Grow",
-    "info.Days": "Days",
-    "info.Weeks": "Weeks",
-    "info.growLine": "Growing since: {days} {daysLabel} | {weeks} {weeksLabel}",
-    "settings.unsaved": "Changes pending – please save",
-    "nav.status": "Status",
-    "nav.runsetting": "Operating Settings",
-    "nav.shelly": "Shelly Settings",
-    "nav.settings": "System Settings",
-    "nav.message": "Push Settings",
-    "nav.logging": "System Log",
-    "nav.factory": "Factory Reset",
-    "status.title": "Status",
-    "status.updated": "Last update:",
-    "status.download": "Download History",
-    "status.delete": "Delete History",
-    "status.currentValues": "current Values",
-    "status.temperature": "Temperature",
-    "status.targetTemp": "target Temperature",
-    "status.lastWaterTemperature": "current Water Temperature",
-    "status.humidity": "Humidity",
-    "status.lastvpd": "current VPD",
-    "status.targetVpd": "target VPD",
-    "status.toggleRelay": "toggle",
-    "status.relayIrrigation": "Irrigation Control",
-    "status.irrigationPump1": "Pump 1",
-    "status.irrigationPump2": "Pump 2",
-    "status.irrigationPump3": "Pump 3",
-    "status.watering": "Irrigation",
-    "status.startWatering": "start",
-    "status.stopWatering": "stop",
-    "status.tank": "Tank Level",
-    "status.pingTank": "check",
-    "status.shellyControl": "Shelly Control",
-    "status.shellyMainSw": "Main Switch",
-    "status.shellyHeater": "Heater",
-    "status.shellyHumidifier": "Humidifier",
-    "status.shellyFan": "Fan",
-    "status.wateringLeft": "left",
-    "status.endIn": "end in",
-    "runsetting.relayScheduling": "Relay Scheduling",
-    "runsetting.relay.enable": "Enable:",
-    "runsetting.relay.start": "Start:",
-    "runsetting.relay.stop": "Stop:",
-    "shelly.title": "Shelly Settings",
-    "status.shellyDevices": "Shelly Devices",
-    "shelly.shellyIPHeater": "Shelly IP Heater:",
-    "shelly.shellyIPHumidity": "Shelly IP Humidifier:",
-    "status.shellyAuth": "Authentication",
-    "shelly.shellyAuthUser": "Username: (optional)",
-    "shelly.shellyAuthPassword": "Password: (optional)",
-    "status.averagesLastHour": "Averages last hour",
-    "status.history": "History (last hour)",
-    "status.refresh": "Refresh",
-    "status.avgWaterTemperature": "Ø",
-    "status.avgHumidity": "Ø Humidity",
-    "status.avgVpd": "Ø VPD",
-    "status.relayControl": "Relay Control",
-    "status.toggleRelay": "toggle",
-    "status.relayIrrigation": "Irrigation Control",
-    "status.relayOn": "turn on (10s)",
-    "runsetting.title": "Operating settings",
-    "runsetting.startGrow": "Start Date:",
-    "runsetting.startFlower": "Start Flowering Date:",
-    "runsetting.startDry": "Start Drying Date:",
-    "runsetting.phase": "Current Phase:",
-    "runsetting.phase.grow": "VEGETATIVE",
-    "runsetting.phase.flower": "FLOWERING",
-    "runsetting.phase.dry": "DRYING",
-    "runsetting.targetTemp": "Target temperature",
-    "runsetting.offsetLeafTemperature": "Offset leaf temperature",
-    "runsetting.targetVPD": "Target VPD",
-    "runsetting.wateringSettings": "Irrigation Settings",
-    "runsetting.timePerTask": "Irrigation time per task",
-    "runsetting.betweenTasks": "Pause between irrigations:",
-    "runsetting.amountOfWater": "Amount of water after 10 seconds:",
-    "runsetting.irrigation": "total amount of irrigation:",
-    "settings.title": "Settings",
-    "settings.debugEnabled": "Enable debug",
-    "settings.boxName": "Box name:",
-    "settings.ntpserver": "NTP server:",
-    "settings.ntpserver.ph": "e.g. pool.ntp.org",
-    "settings.timeZoneInfo": "Time zone:",
-    "settings.timeZoneInfo.ph": "e.g. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
-    "settings.boxName.ph": "e.g. Growtent-1",
-    "settings.language": "Language:",
-    "settings.theme": "Theme:",
-    "settings.themeLight": "Light",
-    "settings.themeDark": "Dark",
-    "settings.dateFormat": "Date format:",
-    "settings.df_ymd": "YYYY-MM-DD",
-    "settings.timeFormat": "Time format:",
-    "settings.tf_HHmm": "24h",
-    "settings.tf_hhmma": "12h AM/PM",
-    "settings.save": "Save",
-    "settings.tempUnit": "Temperature unit:",
-    "settings.celsius": "°C (Celsius)",
-    "settings.fahrenheit": "°F (Fahrenheit)",
-    "settings.DS18B20": "DS18B20 Sensor",
-    "settings.DS18B20Address": "DS18B20 Name:",
-    "settings.relaySettings": "Relay Settings",
-    "settings.relay1": "Relay name 1:",
-    "settings.relay2": "Relay name 2:",
-    "settings.relay3": "Relay name 3:",
-    "settings.relay4": "Relay name 4:",
-    "settings.relay5": "Relay name 5:",
-    "settings.relay6": "Irrigation 1:",
-    "settings.relay7": "Irrigation 2:",
-    "settings.relay8": "Irrigation 3:",
-    "message.title": "Message Settings",
-    "message.enabled": "Enable",
-    "message.pushoverUser": "Pushover User:",
-    "message.pushoverUserKey.ph": "Your User Key",
-    "message.pushoverAppKey": "Pushover App Token:",
-    "message.pushoverAppKey.ph": "API Token/Key",
-    "message.pushoverDevice": "Pushover Device (optional):",
-    "message.pushoverDevice.ph": "e.g. my-phone",
-    "message.gotifyServer": "Gotify Server URL:",
-    "message.gotifyUrl.ph": "e.g. https://gotify.me/message",
-    "message.gotifyToken": "Gotify App Token:",
-    "message.gotifyToken.ph": "e.g. a1b2c3",
-    "vars.variables": "Variables",
-    "vars.hint": "Debug view: all registered values (automatically from /api/state). Tokens/passwords are masked.",
-    "logging.title": "Logging Settings",
-    "factory.title": "Factory Settings",
-    "factory.reset": "Reset / Restart"
-  });
+  
 })();
 
 // ---------- Sensor polling ----------
@@ -604,7 +609,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('tempUnit')?.addEventListener('change', e => setTempUnit(e.target.value));
 
   // ---------- i18n ----------
-  let manifest=null, I18N={}, currentLang='de';
+  let manifest=null, I18N_RAW={}, I18N={}, currentLang='de';
   function readJsonTag(id){
     const el=$(id); if(!el) throw new Error('Missing tag: '+id);
     return JSON.parse(el.textContent.trim());
@@ -624,8 +629,8 @@ window.addEventListener('DOMContentLoaded', () => {
       const attr=el.getAttribute('data-i18n-attr');
       const val=I18N[key];
       if(val!==undefined){ if(attr){ el.setAttribute(attr,val); } else { el.textContent=val; } }
-      rerenderDatePreviews();
     });
+    rerenderDatePreviews();
     const df=$('dateFormat');
     if(df){ const saved=localStorage.getItem('dateFormat')||getDefaultDateFormatFor(currentLang); if(df.value!==saved) df.value=saved; }
     const tf=$('timeFormat');
@@ -634,13 +639,30 @@ window.addEventListener('DOMContentLoaded', () => {
     renderHeaderDateTime();
   }
   function setLanguage(code){
-    try{ I18N = readJsonTag('i18n-'+code); currentLang = code; }
-    catch{ I18N = readJsonTag('i18n-de');  currentLang = 'de'; }
+    try { I18N_RAW = readJsonTag('i18n'); }
+    catch { I18N_RAW = {}; }
+
+    currentLang = code || 'de';
+
+    // flatten: I18N[key] = string for currentLang (with fallbacks)
+    I18N = {};
+    for (const [k, v] of Object.entries(I18N_RAW)) {
+      if (v && typeof v === 'object') {
+        I18N[k] = v[currentLang] ?? v.de ?? v.en;
+      } else {
+        // allow legacy plain strings if any slipped in
+        I18N[k] = v;
+      }
+    }
+    
     localStorage.setItem('lang', currentLang);
     if(!localStorage.getItem('dateFormat')) localStorage.setItem('dateFormat', getDefaultDateFormatFor(currentLang));
     if(!localStorage.getItem('timeFormat')) localStorage.setItem('timeFormat', getDefaultTimeFormatFor(currentLang));
     if(!localStorage.getItem('tempUnit'))   localStorage.setItem('tempUnit', currentLang === 'en' ? 'F' : 'C');
+
+    validateI18n();
     applyTranslations();
+
     const sel=$('language'); if(sel && sel.value !== currentLang) sel.value = currentLang;
   }
   (function initI18n(){
@@ -652,6 +674,43 @@ window.addEventListener('DOMContentLoaded', () => {
     buildLanguageSelect(initial);
     setLanguage(initial);
   })();
+
+  // ---------- i18n validation ----------
+  function validateI18n(){
+    // nur prüfen, wenn wir das RAW-Objekt haben
+    if (!I18N_RAW || typeof I18N_RAW !== 'object') return;
+
+    const missingKey = new Set();
+    const missingLang = new Set();
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (!key) return;
+
+      const entry = I18N_RAW[key];
+
+      // Key fehlt komplett
+      if (typeof entry === 'undefined') {
+        missingKey.add(key);
+        return;
+      }
+
+      // Entry ist {de,en} aber aktuelle Sprache fehlt
+      if (entry && typeof entry === 'object') {
+        const val = entry[currentLang];
+        if (typeof val === 'undefined' || val === null || String(val).trim() === '') {
+          missingLang.add(`${key} (missing "${currentLang}")`);
+        }
+      }
+    });
+
+    if (missingKey.size) {
+      console.warn(`[i18n] Missing keys (${missingKey.size}):`, Array.from(missingKey).sort());
+    }
+    if (missingLang.size) {
+      console.warn(`[i18n] Missing translations (${missingLang.size}):`, Array.from(missingLang).sort());
+    }
+  }
 
   // ---------- Sensor fetch (/sensordata) ----------
   async function updateSensorValues() {
@@ -825,25 +884,31 @@ window.addEventListener('DOMContentLoaded', () => {
     return ctx;
   }
 
-  function computeMinMax(arr){
-    let min = Infinity, max = -Infinity, ok = 0;
+  function computeStats(arr){
+    let min = Infinity, max = -Infinity, sum = 0, ok = 0;
+
     for (const v of arr) {
       if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
       ok++;
+      sum += v;
       if (v < min) min = v;
       if (v > max) max = v;
     }
-    if (!ok) return { min: null, max: null };
+
+    if (!ok) return { min: null, max: null, avg: null };
+    const avg = sum / ok;
+
     if (min === max) { min -= 0.5; max += 0.5; }
-    return { min, max };
+
+    return { min, max, avg };
   }
 
   // Draws a series of data into a canvas element
-  function drawSeries(canvasId, arr, minSpanId, maxSpanId, decimals, targetValue, intervalSec){
+  function drawSeries(canvasId, arr, minSpanId, avgSpanId, maxSpanId, decimals, targetValue, intervalSec){
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  const {min, max} = computeMinMax(arr);
+  const { min, max, avg } = computeStats(arr);
 
   // --- optional: Sollwert in Skala einbeziehen, damit Linie nicht "außerhalb" liegt ---
   let min2 = min, max2 = max;
@@ -855,8 +920,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const minEl = document.getElementById(minSpanId);
+  const avgEl = document.getElementById(avgSpanId);
   const maxEl = document.getElementById(maxSpanId);
   if (minEl) minEl.textContent = (min2 === null) ? '–' : min2.toFixed(decimals);
+  if (avgEl) avgEl.textContent = (avg === null) ? '–' : avg.toFixed(decimals);
   if (maxEl) maxEl.textContent = (max2 === null) ? '–' : max2.toFixed(decimals);
 
   const ctx = canvasHiDPI(canvas);
@@ -1022,10 +1089,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const d = await r.json();
       if (!d || !Array.isArray(d.temp)) return;
 
-      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempMax',  1, d.targetTempC, d.intervalSec);
-      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumMax',   1, null, d.intervalSec);
-      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdMax',   2, d.targetVpdKpa, d.intervalSec);
-      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterMax', 1, null, d.intervalSec);
+      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempAvg',  'chartTempMax',  1, d.targetTempC,  d.intervalSec);
+      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumAvg',   'chartHumMax',   1, null,           d.intervalSec);
+      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdAvg',   'chartVpdMax',   2, d.targetVpdKpa, d.intervalSec);
+      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterAvg', 'chartWaterMax', 1, null,           d.intervalSec);
     } catch (e) {
       console.warn('history fetch failed', e);
     }
