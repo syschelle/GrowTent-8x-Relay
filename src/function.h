@@ -58,13 +58,20 @@ String getTimeString() {
 
 // log buffer to store recent log lines
 void logPrint(const String& msg) {
-  // Output serially
-  Serial.println(msg);
+  time_t now = time(nullptr);
+  struct tm t;
+  localtime_r(&now, &t);
 
-  // Write to the weblog buffer
-  logBuffer.push_back(msg);
+  char ts[20];
+  strftime(ts, sizeof(ts), "%H:%M:%S", &t);
+
+  String line = String(ts) + " - " + msg;
+
+  Serial.println(line);
+
+  logBuffer.push_back(line);
   if (logBuffer.size() > LOG_MAX_LINES) {
-    logBuffer.pop_front();  // Remove old rows if exceeding max lines logBuffer.size()
+    logBuffer.pop_front();
   }
 }
 
