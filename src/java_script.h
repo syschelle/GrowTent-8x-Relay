@@ -465,6 +465,23 @@ window.toggleShellyRelay = async function(device) {
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
 
+  // ---------- Chart style cache (MUST be before applyTheme) ----------
+  let chartStrokeCache = null;
+
+  function getChartStroke(){
+    if (chartStrokeCache) return chartStrokeCache;
+    const css = getComputedStyle(document.documentElement);
+    chartStrokeCache =
+      (css.getPropertyValue('--link') ||
+       css.getPropertyValue('--text') ||
+       '#888').trim();
+    return chartStrokeCache;
+  }
+
+  function invalidateChartStyleCache(){
+    chartStrokeCache = null;
+  }  
+
   // ---------- Small DOM helpers ----------
   const $  = (id) => document.getElementById(id);
   const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
@@ -518,6 +535,10 @@ window.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('theme', theme);
     const sel = $('theme');
     if (sel && sel.value !== theme) sel.value = theme;
+
+    // charts: avoid repeated getComputedStyle cost after theme changes
+    try { invalidateChartStyleCache(); } catch(e) {}
+    window.updateHistoryCharts?.(true);
   }
   (function initTheme(){
     const saved = localStorage.getItem('theme');
@@ -884,23 +905,82 @@ window.addEventListener('DOMContentLoaded', () => {
     return ctx;
   }
 
-  function computeStats(arr){
+  // ---------- chart perf helpers ----------
+  // Downsample to at most ~1 point per CSS pixel (huge speedup),
+  // and smooth only the DRAW line (stats stay raw/real).
+  const CHART_CFG = {
+    pointsPerPixel: 1.0,   // 1.0 = max ~1 point per pixel
+    smoothWindow: 5        // 1 = no smoothing, 3..9 typical
+  };
+
+  function movingAverage(arr, window){
+    const w = Math.max(1, window|0);
+    if (w <= 1 || arr.length < 3) return arr;
+    const half = Math.floor(w / 2);
+    const out = new Array(arr.length).fill(null);
+
+    for (let i = 0; i < arr.length; i++) {
+      let sum = 0, ok = 0;
+      const a = Math.max(0, i - half);
+      const b = Math.min(arr.length - 1, i + half);
+      for (let j = a; j <= b; j++) {
+        const v = arr[j];
+        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
+        sum += v; ok++;
+      }
+      out[i] = ok ? (sum / ok) : null;
+    }
+    return out;
+  }
+
+  function prepareSeries(arr, maxPoints, smoothWindow){
+    const n = Array.isArray(arr) ? arr.length : 0;
+    if (!n) return { draw: [], stats: { min: null, max: null, avg: null } };
+
+    const mp = Math.max(20, maxPoints|0);
+
     let min = Infinity, max = -Infinity, sum = 0, ok = 0;
 
-    for (const v of arr) {
-      if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
-      ok++;
-      sum += v;
-      if (v < min) min = v;
-      if (v > max) max = v;
+    // already small enough: compute stats on raw; draw = raw (then smooth)
+    if (n <= mp) {
+      const draw = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const v = arr[i];
+        draw[i] = v;
+        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
+        ok++; sum += v;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const stats = ok ? { min, max, avg: (sum/ok) } : { min: null, max: null, avg: null };
+      return { draw: movingAverage(draw, smoothWindow), stats };
     }
 
-    if (!ok) return { min: null, max: null, avg: null };
-    const avg = sum / ok;
+    // bucket downsampling: each bucket -> avg for draw, stats from raw values
+    const bucketSize = Math.ceil(n / mp);
+    const draw = [];
 
-    if (min === max) { min -= 0.5; max += 0.5; }
+    for (let i = 0; i < n; i += bucketSize) {
+      const end = Math.min(n, i + bucketSize);
+      let bSum = 0, bOk = 0;
 
-    return { min, max, avg };
+      for (let j = i; j < end; j++) {
+        const v = arr[j];
+        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
+
+        // stats from RAW
+        ok++; sum += v;
+        if (v < min) min = v;
+        if (v > max) max = v;
+
+        // draw avg
+        bOk++; bSum += v;
+      }
+      draw.push(bOk ? (bSum / bOk) : null);
+    }
+
+    const stats = ok ? { min, max, avg: (sum/ok) } : { min: null, max: null, avg: null };
+    return { draw: movingAverage(draw, smoothWindow), stats };
   }
 
   // Draws a series of data into a canvas element
@@ -908,7 +988,11 @@ window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  const { min, max, avg } = computeStats(arr);
+  const cssW = (canvas.clientWidth || canvas.width || 300);
+  const maxPoints = Math.max(60, Math.floor(cssW * CHART_CFG.pointsPerPixel));
+  const prep = prepareSeries(arr, maxPoints, CHART_CFG.smoothWindow);
+  const drawArr = prep.draw;
+  const { min, max, avg } = prep.stats;
 
   // --- optional: Sollwert in Skala einbeziehen, damit Linie nicht "außerhalb" liegt ---
   let min2 = min, max2 = max;
@@ -927,8 +1011,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (maxEl) maxEl.textContent = (max2 === null) ? '–' : max2.toFixed(decimals);
 
   const ctx = canvasHiDPI(canvas);
-  const css = getComputedStyle(document.documentElement);
-  const stroke = (css.getPropertyValue('--link') || css.getPropertyValue('--text') || '#888').trim();
+  const stroke = getChartStroke();
   ctx.strokeStyle = stroke;
 
   const w = canvas.clientWidth || canvas.width;
@@ -995,9 +1078,10 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.stroke();
   ctx.restore();
 
-  if (min2 === null || max2 === null || arr.length < 2) return;
+  if (min2 === null || max2 === null || drawArr.length < 2) return;
 
-  const n = arr.length;
+  const n = drawArr.length;
+
   const xStep = innerW / Math.max(1, n - 1);
   const yScale = innerH / (max2 - min2);
 
@@ -1061,7 +1145,7 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.beginPath();
   let started = false;
   for (let i = 0; i < n; i++) {
-    const v = arr[i];
+    const v = drawArr[i];
     if (v === null || typeof v !== 'number' || !isFinite(v)) {
       started = false;
       continue;
@@ -1077,9 +1161,42 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   ctx.stroke();
   ctx.restore();
+ }
 
-}
+  // Only redraw when history actually changes
+  let _histSig = "";
+  function _sig(arr){
+    const n = arr?.length || 0;
+    const a = n ? arr[0] : '';
+    const b = n ? arr[n-1] : '';
+    return `${n}|${a}|${b}`;
+  }
 
+  // schedule drawing in rAF to keep UI responsive
+  let _pendingHist = null;
+  let _rafScheduled = false;
+  function scheduleHistoryDraw(d){
+    _pendingHist = d;
+    if (_rafScheduled) return;
+    _rafScheduled = true;
+
+    requestAnimationFrame(() => {
+      _rafScheduled = false;
+      const x = _pendingHist; _pendingHist = null;
+      if (!x) return;
+
+      const newSig = [
+        _sig(d.temp), _sig(d.hum), _sig(d.vpd), _sig(d.water),
+        d.intervalSec, d.targetTempC, d.targetVpdKpa
+      ].join('||');
+
+      if (!force && newSig === _histSig) return;
+      _histSig = newSig;
+
+      scheduleHistoryDraw(d);
+    });
+  }  
+ 
 
   window.updateHistoryCharts = async function(force){
     try {

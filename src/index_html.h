@@ -167,44 +167,65 @@ const char* htmlPage = R"rawliteral(
         <h2 data-i18n="status.history">Verlauf (letzte Stunde)</h2>
         <button class="btn" type="button" onclick="updateHistoryCharts(true)" data-i18n="status.refresh">Aktualisieren</button>
       </div>
-      <div class="history-grid">
-        <div class="chart-card">
-          <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
-          <canvas id="chartTemp" height="110"></canvas>
-          <div class="chart-foot">
-            Min:&nbsp;<span id="chartTempMin">–</span>
-            &nbsp;&nbsp; Avg:&nbsp;<span id="chartTempAvg">–</span>
-            &nbsp;&nbsp; Max:&nbsp;<span id="chartTempMax">–</span> °C
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
-          <canvas id="chartHum" height="110"></canvas>
-          <div class="chart-foot">
-            Min:&nbsp;<span id="chartHumMin">–</span>
-            &nbsp;&nbsp; Avg:&nbsp;<span id="chartHumAvg">–</span>
-            &nbsp;&nbsp; Max:&nbsp;<span id="chartHumMax">–</span> %
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">VPD</div>
-          <canvas id="chartVpd" height="110"></canvas>
-          <div class="chart-foot">
-            Min:&nbsp;<span id="chartVpdMin">–</span>
-            &nbsp;&nbsp; Avg:&nbsp;<span id="chartVpdAvg">–</span>
-            &nbsp;&nbsp; Max:&nbsp;<span id="chartVpdMax">–</span> kPa
-          </div>
-        </div>
-        <div class="chart-card" id="chartWaterCard">
-          <div class="chart-title">%DS18B20NAME%</div>
-          <canvas id="chartWater" height="110"></canvas>
-          <div class="chart-foot">
-            Min:&nbsp;<span id="chartWaterMin">–</span>
-            &nbsp;&nbsp; Avg:&nbsp;<span id="chartWaterAvg">–</span>
-            &nbsp;&nbsp; Max:&nbsp;<span id="chartWaterMax">–</span> °C
-          </div>
-        </div>
-      </div>
+<div class="history-grid">
+
+  <!-- Temperatur -->
+  <div class="chart-card">
+    <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
+    <canvas id="chartTemp" height="110"></canvas>
+    <div class="chart-foot">
+      <span>Min:</span> <span id="chartTempMin">–</span>
+      <span class="sep">·</span>
+      <span>Avg:</span> <span id="chartTempAvg">–</span>
+      <span class="sep">·</span>
+      <span>Max:</span> <span id="chartTempMax">–</span>
+      <span class="unit">°C</span>
+    </div>
+  </div>
+
+  <!-- Luftfeuchte -->
+  <div class="chart-card">
+    <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
+    <canvas id="chartHum" height="110"></canvas>
+    <div class="chart-foot">
+      <span>Min:</span> <span id="chartHumMin">–</span>
+      <span class="sep">·</span>
+      <span>Avg:</span> <span id="chartHumAvg">–</span>
+      <span class="sep">·</span>
+      <span>Max:</span> <span id="chartHumMax">–</span>
+      <span class="unit">%</span>
+    </div>
+  </div>
+
+  <!-- VPD -->
+  <div class="chart-card">
+    <div class="chart-title">VPD</div>
+    <canvas id="chartVpd" height="110"></canvas>
+    <div class="chart-foot">
+      <span>Min:</span> <span id="chartVpdMin">–</span>
+      <span class="sep">·</span>
+      <span>Avg:</span> <span id="chartVpdAvg">–</span>
+      <span class="sep">·</span>
+      <span>Max:</span> <span id="chartVpdMax">–</span>
+      <span class="unit">kPa</span>
+    </div>
+  </div>
+
+  <!-- %DS18B20NAME% -->
+  <div class="chart-card" id="chartWaterCard">
+    <div class="chart-title">%DS18B20NAME%</div>
+    <canvas id="chartWater" height="110"></canvas>
+    <div class="chart-foot">
+      <span>Min:</span> <span id="chartWaterMin">–</span>
+      <span class="sep">·</span>
+      <span>Avg:</span> <span id="chartWaterAvg">–</span>
+      <span class="sep">·</span>
+      <span>Max:</span> <span id="chartWaterMax">–</span>
+      <span class="unit">°C</span>
+    </div>
+  </div>
+
+</div>
 
     <h2 data-i18n="status.relayIrrigation">Bewässerungssteuerung</h2>
     <div class="relay-row" id="pumpRow">

@@ -243,7 +243,24 @@ const char cssContent[] PROGMEM = R"rawliteral(
       background: var(--muted);
     }
     .chart-title{font-weight:600; font-size:.95rem; opacity:.9; margin-bottom:6px}
-    .chart-foot{font-size:.85rem; opacity:.75; margin-top:6px; display:flex; justify-content:flex-end}
+    .chart-foot {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #dc3545;
+      opacity: 0.85;
+    }
+
+    .chart-foot .sep {
+      margin: 0 6px;
+      opacity: 0.5;
+    }
+
+    .chart-foot .unit {
+      margin-left: 2px;
+      opacity: 0.8;
+    }
     canvas{width:100%; height:auto; display:block}
 
     .metric-label {
