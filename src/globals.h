@@ -316,6 +316,11 @@ extern int lastSyncDay;
 extern bool ntpSyncPending;
 extern unsigned long ntpStartMs;
 
+// Hint-State
+extern String hintKey;
+extern String hintDetailsJson;
+extern uint32_t hintId;
+
 // Buffers / circular logs
 extern const uint32_t READ_INTERVAL_MS;
 extern uint32_t lastRead;

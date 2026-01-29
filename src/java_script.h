@@ -301,7 +301,12 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "diary.clear": { de: "Tagebuch löschen", en: "Clear diary" },
   "diary.saved": { de: "Gespeichert ✓", en: "Saved ✓" },
   "diary.error": { de: "Fehler beim Speichern", en: "Save failed" },
-  "diary.confirmClear": { de: "Wirklich alle Tagebuch-Einträge löschen?", en: "Really clear all diary entries?" }
+  "diary.confirmClear": { de: "Wirklich alle Tagebuch-Einträge löschen?", en: "Really clear all diary entries?" },
+
+  /* -------------------- Hints -------------------- */
+  "hint.systemStarted": { de: "System gestartet", en: "System started" },
+  "hint.saved": { "de": "Gespeichert ✓", "en": "Saved ✓" },
+  "hint.unsaved": { "de": "Änderungen – bitte speichern", "en": "Changes pending – please save" },
 
   });
 
@@ -551,29 +556,41 @@ window.addEventListener('DOMContentLoaded', () => {
    * Convenience helper: shows the localized "settings.unsaved" text plus optional details.
    * details can be a string or an object like { temp: 23.1, vpd: 1.2 }.
    */
-  function showUnsavedHint(details, { durationMs = 8000 } = {}) {
-    const base = (typeof I18N === 'object' && I18N && I18N['settings.unsaved'])
-      ? I18N['settings.unsaved']
-      : 'Änderungen – bitte speichern';
-
-    let extra = '';
-    if (typeof details === 'string' && details.trim()) {
-      extra = ` — ${details.trim()}`;
-    } else if (details && typeof details === 'object') {
-      const parts = [];
-      for (const [k, v] of Object.entries(details)) {
-        if (v === null || typeof v === 'undefined') continue;
-        parts.push(`${k}: ${v}`);
-      }
-      if (parts.length) extra = ` — ${parts.join(' | ')}`;
-    }
-
-    showStatusHint(base + extra, { durationMs });
+  function formatI18n(key, details = {}) {
+    const tpl = (typeof I18N === 'object' && I18N && I18N[key]) ? I18N[key] : key;
+    return String(tpl).replace(/\{(\w+)\}/g, (_, k) => {
+      const v = details?.[k];
+      return (v === null || typeof v === 'undefined') ? '' : String(v);
+    });
   }
 
-  // expose globally so other code can call it:
-  window.showStatusHint = showStatusHint;
-  window.showUnsavedHint = showUnsavedHint;
+
+  // ===================================================================
+  //  Hint polling from ESP32 WebServer endpoint (/api/hint)
+  //  ESP should return: {"id":123,"message":"..."}
+  //  - When id changes, message is shown for 8s (and resets if new comes)
+  // ===================================================================
+  (function pollHint(){
+     let lastId = -1;
+
+     async function tick(){
+       try {
+         const r = await fetch('/api/hint', { cache: 'no-store' });
+         if (!r.ok) return;
+         const d = await r.json();
+
+         if (typeof d.id === 'number' && d.id !== lastId) {
+           lastId = d.id;
+
+           const msg = formatI18n(d.key, d.details || {});
+           if (msg && msg.trim()) window.showStatusHint(msg); // 8s + reset
+         }
+       } catch(e) {}
+     }
+
+     tick();
+     setInterval(tick, 1000);
+  })();
 
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');

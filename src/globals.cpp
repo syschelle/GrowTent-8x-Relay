@@ -97,6 +97,11 @@ int lastSyncDay = -1;
 bool ntpSyncPending = false;
 unsigned long ntpStartMs = 0;
 
+// Component: Hint-State
+String hintKey = "hint.none";
+String hintDetailsJson = "{}";
+uint32_t hintId = 0;
+
 // Legacy/global UI vars (used throughout runtime.h/function.h)
 String boxName = "newGrowTent";
 String language = "de";

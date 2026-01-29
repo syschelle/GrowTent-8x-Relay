@@ -559,6 +559,9 @@ void setup() {
   server.on("/relay/7/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(6); });
   server.on("/relay/8/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(7); });
 
+  // hint message
+  server.on("/api/hint", HTTP_GET, handleHint);
+
   // diary list (for UI)
   server.on("/api/diary/list", HTTP_GET, []() {
     server.send(200, "application/json", "{\"items\":[]}");
@@ -615,7 +618,8 @@ void setup() {
   });
 
   server.begin();
-  logPrint("[APP] Web server started");
+  pushHintKey("hint.systemStarted");
+  logPrint("[APP] system started");
 
   // Do the slow init after the webserver is up.
   xTaskCreatePinnedToCore(taskDeferredInit, "deferredInit", 4096, nullptr, 1, nullptr, 0);

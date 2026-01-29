@@ -519,6 +519,27 @@ void handleSaveWiFi() {
   }
 }
 
+// key, detailsJson = "{}"
+void pushHintKey(const String& key, const String& detailsJson = "{}") {
+  hintKey = key;
+  hintDetailsJson = detailsJson;
+  hintId++;
+}
+
+// API: /get hint
+void handleHint() {
+  // {"id":1,"key":"hint.saved","details":{"percent":12}}
+  String json = "{\"id\":" + String(hintId) + ",\"key\":\"";
+
+  // escape quotes/backslashes in key
+  String escapedKey = hintKey;
+  escapedKey.replace("\\", "\\\\");
+  escapedKey.replace("\"", "\\\"");
+  json += escapedKey + "\",\"details\":" + hintDetailsJson + "}";
+
+  server.send(200, "application/json", json);
+}
+
 // Handle factory reset
 void handleFactoryReset() {
   preferences.begin(PREF_NS, false);
