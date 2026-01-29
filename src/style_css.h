@@ -248,7 +248,6 @@ const char cssContent[] PROGMEM = R"rawliteral(
       align-items: center;
       gap: 4px;
       font-size: 12px;
-      color: #dc3545;
       opacity: 0.85;
     }
 
@@ -484,4 +483,49 @@ const char cssContent[] PROGMEM = R"rawliteral(
       .vars-table{ min-width: 0; }
     }
 
+    .diary-grid{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 720px){
+      .diary-grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .diary-kpi{
+      padding: 12px;
+      border: 1px solid rgba(127,127,127,0.25);
+      border-radius: 12px;
+    }
+    .diary-kpi-title{
+      font-size: 0.9rem;
+      opacity: 0.85;
+      margin-bottom: 6px;
+    }
+    .diary-kpi-val{
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .diary-foot{
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+    .btn-row{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn.danger{
+      border-color: rgba(200,60,60,0.55);
+    }
+    .btn.danger:hover{
+      border-color: rgba(200,60,60,0.85);
+    }
+
 )rawliteral";
+
+/* -------------------- Grow Diary -------------------- */

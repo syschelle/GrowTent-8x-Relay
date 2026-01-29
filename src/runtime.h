@@ -287,6 +287,7 @@ void readPreferences() {
   loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
+  loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
   loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
@@ -339,6 +340,7 @@ void readPreferences() {
   loadPrefString(KEY_DS18B20ENABLE, DS18B20Enable, "", true, "DS18B20Enable");
   if (DS18B20Enable) DS18B20 = "checked";
   loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
+
   // notification settings
   loadPrefString(KEY_PUSHOVER, pushoverEnabled, "", true, "pushoverEnabled");
   if (pushoverEnabled ) pushoverSent = true;
@@ -483,9 +485,6 @@ auto getCpuLoadPct = []() -> float {
         lastCompact = now;
         logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
       }
-
-      // hier könntest du auch deine "addReading(...)" für die 1h-Mittel aufrufen
-      // z.B.: addReading(lastTemperature, lastHumidity, lastVPD, DS18B20STemperature);
     }
   }
 

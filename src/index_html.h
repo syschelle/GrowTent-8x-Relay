@@ -69,6 +69,7 @@ const char* htmlPage = R"rawliteral(
   <div class="layout">
     <nav class="sidebar" id="sidebar">
       <a class="navlink" data-page="status"   data-i18n="nav.status">Status</a>
+      <a class="navlink" data-page="diary"   data-i18n="nav.diary">Grow Diary</a>
       <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungen</a>
       <a class="navlink" data-page="shelly" data-i18n="nav.shelly">Shelly Einstellungen</a>
       <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
@@ -167,65 +168,63 @@ const char* htmlPage = R"rawliteral(
         <h2 data-i18n="status.history">Verlauf (letzte Stunde)</h2>
         <button class="btn" type="button" onclick="updateHistoryCharts(true)" data-i18n="status.refresh">Aktualisieren</button>
       </div>
-<div class="history-grid">
+      <div class="history-grid">
+        <!-- Temperatur -->
+        <div class="chart-card">
+          <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
+          <canvas id="chartTemp" height="110"></canvas>
+          <div class="chart-foot">
+            <span>Min:</span> <span id="chartTempMin">–</span>
+            <span class="sep">·</span>
+            <span>Avg:</span> <span id="chartTempAvg">–</span>
+            <span class="sep">·</span>
+            <span>Max:</span> <span id="chartTempMax">–</span>
+            <span class="unit">°C</span>
+          </div>
+        </div>
 
-  <!-- Temperatur -->
-  <div class="chart-card">
-    <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
-    <canvas id="chartTemp" height="110"></canvas>
-    <div class="chart-foot">
-      <span>Min:</span> <span id="chartTempMin">–</span>
-      <span class="sep">·</span>
-      <span>Avg:</span> <span id="chartTempAvg">–</span>
-      <span class="sep">·</span>
-      <span>Max:</span> <span id="chartTempMax">–</span>
-      <span class="unit">°C</span>
-    </div>
-  </div>
+        <!-- Luftfeuchte -->
+        <div class="chart-card">
+          <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
+          <canvas id="chartHum" height="110"></canvas>
+          <div class="chart-foot">
+            <span>Min:</span> <span id="chartHumMin">–</span>
+            <span class="sep">·</span>
+            <span>Avg:</span> <span id="chartHumAvg">–</span>
+            <span class="sep">·</span>
+            <span>Max:</span> <span id="chartHumMax">–</span>
+            <span class="unit">%</span>
+          </div>
+        </div>
 
-  <!-- Luftfeuchte -->
-  <div class="chart-card">
-    <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
-    <canvas id="chartHum" height="110"></canvas>
-    <div class="chart-foot">
-      <span>Min:</span> <span id="chartHumMin">–</span>
-      <span class="sep">·</span>
-      <span>Avg:</span> <span id="chartHumAvg">–</span>
-      <span class="sep">·</span>
-      <span>Max:</span> <span id="chartHumMax">–</span>
-      <span class="unit">%</span>
-    </div>
-  </div>
+        <!-- VPD -->
+        <div class="chart-card">
+          <div class="chart-title">VPD</div>
+          <canvas id="chartVpd" height="110"></canvas>
+          <div class="chart-foot">
+            <span>Min:</span> <span id="chartVpdMin">–</span>
+            <span class="sep">·</span>
+            <span>Avg:</span> <span id="chartVpdAvg">–</span>
+            <span class="sep">·</span>
+            <span>Max:</span> <span id="chartVpdMax">–</span>
+            <span class="unit">kPa</span>
+          </div>
+        </div>
 
-  <!-- VPD -->
-  <div class="chart-card">
-    <div class="chart-title">VPD</div>
-    <canvas id="chartVpd" height="110"></canvas>
-    <div class="chart-foot">
-      <span>Min:</span> <span id="chartVpdMin">–</span>
-      <span class="sep">·</span>
-      <span>Avg:</span> <span id="chartVpdAvg">–</span>
-      <span class="sep">·</span>
-      <span>Max:</span> <span id="chartVpdMax">–</span>
-      <span class="unit">kPa</span>
-    </div>
-  </div>
-
-  <!-- %DS18B20NAME% -->
-  <div class="chart-card" id="chartWaterCard">
-    <div class="chart-title">%DS18B20NAME%</div>
-    <canvas id="chartWater" height="110"></canvas>
-    <div class="chart-foot">
-      <span>Min:</span> <span id="chartWaterMin">–</span>
-      <span class="sep">·</span>
-      <span>Avg:</span> <span id="chartWaterAvg">–</span>
-      <span class="sep">·</span>
-      <span>Max:</span> <span id="chartWaterMax">–</span>
-      <span class="unit">°C</span>
-    </div>
-  </div>
-
-</div>
+        <!-- %DS18B20NAME% -->
+        <div class="chart-card" id="chartWaterCard">
+          <div class="chart-title">%DS18B20NAME%</div>
+          <canvas id="chartWater" height="110"></canvas>
+          <div class="chart-foot">
+            <span>Min:</span> <span id="chartWaterMin">–</span>
+            <span class="sep">·</span>
+            <span>Avg:</span> <span id="chartWaterAvg">–</span>
+            <span class="sep">·</span>
+            <span>Max:</span> <span id="chartWaterMax">–</span>
+            <span class="unit">°C</span>
+          </div>
+        </div>
+      </div>
 
     <h2 data-i18n="status.relayIrrigation">Bewässerungssteuerung</h2>
     <div class="relay-row" id="pumpRow">
@@ -334,6 +333,56 @@ const char* htmlPage = R"rawliteral(
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('fan')">Toggle</button>
       </div>
     </div>
+    </section>
+    
+    <!-- diary section -->
+    <section id="diary" class="page card">
+      <h1 data-i18n="diary.title">Grow Diary</h1>
+
+      <div class="diary-grid">
+        <div class="diary-kpi">
+          <div class="diary-kpi-title" data-i18n="diary.total">Total grow</div>
+          <div class="diary-kpi-val">
+            <span id="diaryGrowDay">–</span>
+            <span class="unit" data-i18n="diary.day">Day</span>
+            &nbsp;•&nbsp;
+            <span id="diaryGrowWeek">–</span>
+            <span class="unit" data-i18n="diary.week">Week</span>
+          </div>
+        </div>
+
+        <div class="diary-kpi">
+          <div class="diary-kpi-title" data-i18n="diary.phase">Phase</div>
+          <div class="diary-kpi-val">
+            <span id="diaryPhaseName">–</span>
+            &nbsp;•&nbsp;
+            <span id="diaryPhaseDay">–</span>
+            <span class="unit" data-i18n="diary.day">Day</span>
+            &nbsp;•&nbsp;
+            <span id="diaryPhaseWeek">–</span>
+            <span class="unit" data-i18n="diary.week">Week</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="form-group">
+        <label for="diaryNote" data-i18n="diary.note">Note (max 265 characters)</label>
+        <textarea id="diaryNote" maxlength="265" rows="4" placeholder="..." data-i18n-attr="placeholder" data-i18n="diary.note.ph"></textarea>
+        <div class="diary-foot">
+          <span id="diaryCount">0/265</span>
+          <span id="diaryStatus" class="muted"> </span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn primary" id="diarySaveBtn" data-i18n="diary.save">Save entry</button>
+        <a class="btn" href="/api/diary.csv" id="diaryDownloadBtn" data-i18n="diary.download">Download CSV</a>
+        <button type="button" class="btn danger" id="diaryClearBtn" data-i18n="diary.clear">Clear diary</button>
+      </div>
+
+      <div id="diaryList" class="diary-list"></div>
     </section>
     
     <!-- shellysettings section -->

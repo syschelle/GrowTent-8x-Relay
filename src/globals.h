@@ -319,7 +319,9 @@ extern const uint32_t READ_INTERVAL_MS;
 extern uint32_t lastRead;
 extern const uint32_t MEASUREMENT_INTERVAL_MS;
 
-#define NUM_VALUES 360
+#define HISTORY_INTERVAL_SEC 300  // record one point every 5 minutes
+#define HISTORY_WINDOW_HOURS 12
+#define NUM_VALUES (HISTORY_WINDOW_HOURS * 3600 / HISTORY_INTERVAL_SEC)  // store up to 12 hours of history
 extern float temps[NUM_VALUES];
 extern float hums[NUM_VALUES];
 extern float vpds[NUM_VALUES];
@@ -327,6 +329,7 @@ extern float waterTemps[NUM_VALUES];
 extern float sumTemp, sumHum, sumVPD, sumWaterTemp;
 extern int index_pos;
 extern int count;
+extern int head;
 
 // Grow runtime
 extern char actualDate[10];

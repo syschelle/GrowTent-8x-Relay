@@ -73,56 +73,279 @@ static void handleApiHistory() {
   const int start = (index_pos - n + NUM_VALUES) % NUM_VALUES;
 
   server.sendHeader("Cache-Control", "no-store");
+
+  // If empty after reboot: return an empty payload (no stale values)
+  if (n <= 0) {
+    String json =
+      String("{\"n\":0,\"intervalSec\":") + String(HISTORY_INTERVAL_SEC) +
+      ",\"targetTempC\":null,\"targetVpdKpa\":null,"
+      "\"temp\":[],\"hum\":[],\"vpd\":[],\"water\":[]}";
+    server.send(200, "application/json; charset=utf-8", json);
+    return;
+  }
+
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/json; charset=utf-8", "");
 
-  auto sendNumOrNull = [](float v) {
+  auto sendNumOrNullN = [](float v, uint8_t dec) -> String {
     if (isnan(v)) return String("null");
-    // keep payload small
-    return String(v, 2);
+
+    char buf[16];
+    dtostrf(v, 0, dec, buf);   // width=0 → no padding
+    return String(buf);
   };
 
-  server.sendContent("{\"n\":" + String(n) + ",\"intervalSec\":10,");
+  // Header
+  server.sendContent("{\"n\":" + String(n) +
+                     ",\"intervalSec\":" + String(HISTORY_INTERVAL_SEC) + ",");
 
   // ---- targets ----
-  server.sendContent("\"targetTempC\":" + sendNumOrNull(targetTemperature) + ",");
-  server.sendContent("\"targetVpdKpa\":" + sendNumOrNull(targetVPD) + ",");
+  server.sendContent("\"targetTempC\":" + sendNumOrNullN(targetTemperature, 1) + ",");
+  server.sendContent("\"targetVpdKpa\":" + sendNumOrNullN(targetVPD, 2) + ",");
 
-  // temps
+  // ---- temp ----
   server.sendContent("\"temp\":[");
   for (int i = 0; i < n; i++) {
-    int idx = (start + i) % NUM_VALUES;
+    const int idx = (start + i) % NUM_VALUES;
     if (i) server.sendContent(",");
-    server.sendContent(sendNumOrNull(temps[idx]));
+
+    if (isnan(temps[idx])) {
+      server.sendContent("null");
+    } else {
+      char buf[16];
+      dtostrf(temps[idx], 0, 1, buf);
+      server.sendContent(buf);
+    }
   }
   server.sendContent("],");
-
-  // hum
+  // ---- hum ----
   server.sendContent("\"hum\":[");
   for (int i = 0; i < n; i++) {
-    int idx = (start + i) % NUM_VALUES;
+    const int idx = (start + i) % NUM_VALUES;
     if (i) server.sendContent(",");
-    server.sendContent(sendNumOrNull(hums[idx]));
+
+    if (isnan(hums[idx])) {
+      server.sendContent("null");
+    } else {
+      char buf[16];
+      dtostrf(hums[idx], 0, 0, buf);   // humidity: 0 decimals
+      server.sendContent(buf);
+    }
   }
   server.sendContent("],");
 
-  // vpd
+  // ---- vpd ----
   server.sendContent("\"vpd\":[");
   for (int i = 0; i < n; i++) {
-    int idx = (start + i) % NUM_VALUES;
+    const int idx = (start + i) % NUM_VALUES;
     if (i) server.sendContent(",");
-    server.sendContent(sendNumOrNull(vpds[idx]));
+
+    if (isnan(vpds[idx])) {
+      server.sendContent("null");
+    } else {
+      char buf[16];
+      dtostrf(vpds[idx], 0, 2, buf);   // VPD: 2 decimals
+      server.sendContent(buf);
+    }
   }
   server.sendContent("],");
 
-  // water
+  // ---- water ----
+  // Keep the key name as "water" because your JS expects d.water
   server.sendContent("\"water\":[");
   for (int i = 0; i < n; i++) {
-    int idx = (start + i) % NUM_VALUES;
+    const int idx = (start + i) % NUM_VALUES;
     if (i) server.sendContent(",");
-    server.sendContent(sendNumOrNull(waterTemps[idx]));
+
+    if (isnan(waterTemps[idx])) {
+      server.sendContent("null");
+    } else {
+      char buf[16];
+      dtostrf(waterTemps[idx], 0, 1, buf);  // water temp: 1 decimal
+      server.sendContent(buf);
+    }
   }
-  server.sendContent("]}");
+  server.sendContent("]");
+  server.sendContent("}");
+
+  server.client().stop();
+}
+
+
+// -------------------- Grow Diary (CSV in LittleFS) --------------------
+static const char* DIARY_PATH = "/growdiary.csv";
+
+// Parse "YYYY-MM-DD" -> time_t (local midnight). Returns 0 if invalid.
+static time_t parseYmdToLocalMidnight(const String& ymd) {
+  if (ymd.length() < 10) return 0;
+  const int y = ymd.substring(0, 4).toInt();
+  const int m = ymd.substring(5, 7).toInt();
+  const int d = ymd.substring(8, 10).toInt();
+  if (y < 1970 || m < 1 || m > 12 || d < 1 || d > 31) return 0;
+
+  struct tm tmv {};
+  tmv.tm_year = y - 1900;
+  tmv.tm_mon  = m - 1;
+  tmv.tm_mday = d;
+  tmv.tm_hour = 0;
+  tmv.tm_min  = 0;
+  tmv.tm_sec  = 0;
+  tmv.tm_isdst = -1; // let libc determine DST
+
+  // mktime interprets tm as local time
+  return mktime(&tmv);
+}
+
+static int daysSince(const String& startYmd, time_t nowLocal) {
+  const time_t start = parseYmdToLocalMidnight(startYmd);
+  if (start <= 0 || nowLocal <= 0) return -1;
+
+  const double diffSec = difftime(nowLocal, start);
+  const int diffDays = (int)floor(diffSec / 86400.0);
+  return diffDays;
+}
+
+// CSV-safe: remove newlines and escape quotes by doubling them.
+static String csvEscape(const String& in) {
+  String s = in;
+  s.replace("\r", " ");
+  s.replace("\n", " ");
+  s.replace("\"", "\"\"");
+  return "\"" + s + "\"";
+}
+
+// POST /api/diary/add
+// Accepts either JSON body {"note":"...","phase":"grow|flower|dry"} or form fields note=...&phase=...
+static void handleDiaryAdd() {
+  // --- read note + optional phase ---
+  String note;
+  String phaseStr;
+
+  if (server.hasArg("plain") && server.arg("plain").length()) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (!err) {
+      note = (const char*) (doc["note"] | "");
+      phaseStr = (const char*) (doc["phase"] | "");
+    }
+  }
+  if (!note.length() && server.hasArg("note")) note = server.arg("note");
+  if (!phaseStr.length() && server.hasArg("phase")) phaseStr = server.arg("phase");
+
+  note.trim();
+  if (note.length() > 265) note = note.substring(0, 265);
+
+  // Determine current phase (fallback to global curPhase if not provided)
+  int phase = curPhase;
+  if (phaseStr == "grow") phase = 1;
+  else if (phaseStr == "flower") phase = 2;
+  else if (phaseStr == "dry") phase = 3;
+
+  const char* phaseCsv = (phase == 2) ? "flower" : (phase == 3) ? "dry" : "grow";
+
+  // --- compute day/week for total grow and current phase ---
+  time_t nowT = time(nullptr);
+  struct tm nowLocalTm {};
+  localtime_r(&nowT, &nowLocalTm);
+
+  // normalize "now" to local midnight for stable day counts
+  struct tm midnightTm = nowLocalTm;
+  midnightTm.tm_hour = 0; midnightTm.tm_min = 0; midnightTm.tm_sec = 0;
+  time_t nowLocalMidnight = mktime(&midnightTm);
+
+  const int growDiff = daysSince(startDate, nowLocalMidnight);
+  const int growDay  = (growDiff >= 0) ? (growDiff + 1) : 0;
+  const int growWeek = (growDay > 0) ? ((growDay - 1) / 7 + 1) : 0;
+
+  String phaseStart = startDate;
+  if (phase == 2 && startFlowering.length() >= 10) phaseStart = startFlowering;
+  if (phase == 3 && startDrying.length()   >= 10) phaseStart = startDrying;
+
+  const int phaseDiff = daysSince(phaseStart, nowLocalMidnight);
+  const int phaseDay  = (phaseDiff >= 0) ? (phaseDiff + 1) : 0;
+  const int phaseWeek = (phaseDay > 0) ? ((phaseDay - 1) / 7 + 1) : 0;
+
+  // --- timestamp ---
+  char tsBuf[32];
+  // ISO-like local time: YYYY-MM-DD HH:MM:SS
+  snprintf(tsBuf, sizeof(tsBuf), "%04d-%02d-%02d %02d:%02d:%02d",
+           nowLocalTm.tm_year + 1900, nowLocalTm.tm_mon + 1, nowLocalTm.tm_mday,
+           nowLocalTm.tm_hour, nowLocalTm.tm_min, nowLocalTm.tm_sec);
+
+  // --- write file ---
+  if (!LittleFS.begin(true)) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
+    return;
+  }
+
+  const bool exists = LittleFS.exists(DIARY_PATH);
+  File f = LittleFS.open(DIARY_PATH, FILE_APPEND);
+  if (!f) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"open\"}");
+    return;
+  }
+
+  // Write header once
+  if (!exists || f.size() == 0) {
+    f.println("ts_local,phase,grow_day,grow_week,phase_day,phase_week,note");
+  }
+
+  // CSV row
+  // note is quoted/escaped
+  String row;
+  row.reserve(512);
+  row += tsBuf;
+  row += ",";
+  row += phaseCsv;
+  row += ",";
+  row += String(growDay);
+  row += ",";
+  row += String(growWeek);
+  row += ",";
+  row += String(phaseDay);
+  row += ",";
+  row += String(phaseWeek);
+  row += ",";
+  row += csvEscape(note);
+
+  f.println(row);
+  f.close();
+
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+}
+
+// GET /api/diary.csv  -> download the diary CSV
+static void handleDiaryDownload() {
+  server.sendHeader("Cache-Control", "no-store");
+
+  if (!LittleFS.begin(true) || !LittleFS.exists(DIARY_PATH)) {
+    // Return empty file with header so the browser still downloads something
+    server.sendHeader("Content-Disposition", "attachment; filename=\"growdiary.csv\"");
+    server.send(200, "text/csv; charset=utf-8", "ts_local,phase,grow_day,grow_week,phase_day,phase_week,note\n");
+    return;
+  }
+
+  File f = LittleFS.open(DIARY_PATH, FILE_READ);
+  if (!f) {
+    server.send(500, "text/plain; charset=utf-8", "open failed");
+    return;
+  }
+
+  server.sendHeader("Content-Disposition", "attachment; filename=\"growdiary.csv\"");
+  server.streamFile(f, "text/csv; charset=utf-8");
+  f.close();
+}
+
+// POST /api/diary/clear  -> delete diary file
+static void handleDiaryClear() {
+  server.sendHeader("Cache-Control", "no-store");
+  if (!LittleFS.begin(true)) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
+    return;
+  }
+  if (LittleFS.exists(DIARY_PATH)) LittleFS.remove(DIARY_PATH);
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
 }
 
 // -------------------- State/Variables API (registry -> JSON) --------------------
@@ -311,6 +534,11 @@ void setup() {
   // history (last hour) for charts
   server.on("/api/history", HTTP_GET, handleApiHistory);
 
+  // grow diary (LittleFS CSV)
+  server.on("/api/diary/add", HTTP_POST, handleDiaryAdd);
+  server.on("/api/diary.csv", HTTP_GET, handleDiaryDownload);
+  server.on("/api/diary/clear", HTTP_POST, handleDiaryClear);
+
   // full state / variables (debug page)
   server.on("/api/state", HTTP_GET, handleApiState);
 
@@ -327,6 +555,11 @@ void setup() {
   server.on("/relay/6/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(5); });
   server.on("/relay/7/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(6); });
   server.on("/relay/8/onFor10Sec", HTTP_POST, []() { handleRelayIrrigationIdx(7); });
+
+  // diary list (for UI)
+  server.on("/api/diary/list", HTTP_GET, []() {
+    server.send(200, "application/json", "{\"items\":[]}");
+  });
 
   server.on("/shelly/heater/toggle", HTTP_POST, []() {
     bool ok = false;

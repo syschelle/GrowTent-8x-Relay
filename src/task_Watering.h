@@ -61,7 +61,8 @@ void taskWatering(void *parameter){
       delay(minutesToMilliseconds(betweenTasks)); // wait 5 minutes before next run
     } else {
       wTimeLeft = "00:00";
-      delay(10000); // check again in 10 seconds
+      // task delay 10 seconds
+      vTaskDelay(pdMS_TO_TICKS(10000));
     } 
   }
 }

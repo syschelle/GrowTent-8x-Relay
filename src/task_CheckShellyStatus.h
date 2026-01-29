@@ -36,7 +36,7 @@ void taskShellyStatus(void *parameter){
     shelly.hum.values = getShellyValues(settings.shelly.hum, 0);
     shelly.fan.values = getShellyValues(settings.shelly.fan, 0);
 
-    // delay  10 seconds
-    delay(10000); 
+    // task delay 10 seconds
+    vTaskDelay(pdMS_TO_TICKS(10000)); 
   }
 }

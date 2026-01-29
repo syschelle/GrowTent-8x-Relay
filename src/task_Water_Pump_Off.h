@@ -41,7 +41,7 @@ void taskWaterPumpOff(void *parameter){
             tankLevelCm = pingTankLevel(TRIG, ECHO);
         }
     }
-    // delay  500 milliseconds
-    delay(500); 
+    // task delay 1 second
+    vTaskDelay(pdMS_TO_TICKS(1000)); 
   }
 }

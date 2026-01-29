@@ -47,6 +47,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "nav.message":     { de: "Push-Einstellungen", en: "Push Settings" },
   "nav.logging":     { de: "Systemprotokoll", en: "System Log" },
   "nav.factory":     { de: "Werkseinstellungen", en: "Factory Reset" },
+  "nav.diary":      { de: "Grow Tagebuch", en: "Grow Diary" },
 
   /* -------------------- Status -------------------- */
   "status.title": { de: "Status", en: "Status" },
@@ -285,7 +286,22 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "logging.title": { de: "Systemprotokoll", en: "Logging Settings" },
 
   "factory.title": { de: "Werkseinstellungen", en: "Factory Settings" },
-  "factory.reset": { de: "Zurücksetzen / Neustart", en: "Reset / Restart" }
+  "factory.reset": { de: "Zurücksetzen / Neustart", en: "Reset / Restart" },
+
+  /* -------------------- diary.* -------------------- */
+  "diary.title": { de: "Grow Tagebuch", en: "Grow Diary" },
+  "diary.total": { de: "Gesamtgrow", en: "Total grow" },
+  "diary.phase": { de: "Phase", en: "Phase" },
+  "diary.day": { de: "Tag", en: "Day" },
+  "diary.week": { de: "Woche", en: "Week" },
+  "diary.note": { de: "Notiz (max. 265 Zeichen)", en: "Note (max 265 characters)" },
+  "diary.note.ph": { de: "z. B. Gießen, Dünger, Beobachtungen…", en: "e.g. watering, nutrients, observations…" },
+  "diary.save": { de: "Eintrag speichern", en: "Save entry" },
+  "diary.download": { de: "CSV herunterladen", en: "Download CSV" },
+  "diary.clear": { de: "Tagebuch löschen", en: "Clear diary" },
+  "diary.saved": { de: "Gespeichert ✓", en: "Saved ✓" },
+  "diary.error": { de: "Fehler beim Speichern", en: "Save failed" },
+  "diary.confirmClear": { de: "Wirklich alle Tagebuch-Einträge löschen?", en: "Really clear all diary entries?" }
 
   });
 
@@ -1339,11 +1355,79 @@ window.addEventListener('DOMContentLoaded', () => {
   // SPA-Seitenwechsel-Callback
   function onPageChanged(activeId) {
     if (activeId === 'logging') startWebLog(); else stopWebLog();
+
     if (activeId === 'vars') {
       // Load once when opening the page (and on refresh)
       loadVars();
     }
+
+    if (activeId === 'diary') {
+      updateDiaryUI();
+      loadDiaryList();
+    }
   }
+
+  // ---------- Diary list (load + render) ----------
+  async function loadDiaryList() {
+    const listEl = document.getElementById('diaryList');
+    if (!listEl) return;
+
+    // optional: kleine Ladeanzeige
+    listEl.innerHTML = `<div class="muted">Loading…</div>`;
+
+    try {
+      // <- HIER ggf. Endpoint anpassen:
+      const res = await fetch('/api/diary/list', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+
+      if (!items.length) {
+        listEl.innerHTML = `<div class="muted">—</div>`;
+        return;
+      }
+
+      // Sort: newest first (wenn ts vorhanden)
+      items.sort((a,b) => (b.ts || 0) - (a.ts || 0));
+
+      const rows = items.map(it => {
+        // Unterstützt ts (unix sec), id als ISO, oder date string
+        let dt = null;
+        if (typeof it.ts === 'number' && isFinite(it.ts)) dt = new Date(it.ts * 1000);
+        else if (typeof it.id === 'string') dt = new Date(it.id);
+        else if (typeof it.date === 'string') dt = new Date(it.date);
+
+        const dtStr = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : (it.id || it.date || '—');
+        const phase = it.phase ? escapeHtml(String(it.phase)) : '';
+        const note  = it.note ? escapeHtml(String(it.note)) : '';
+        const prev  = it.preview ? escapeHtml(String(it.preview)) : note;
+
+        return `
+          <div class="diary-row">
+            <div class="diary-row-left">
+              <div class="diary-date">${escapeHtml(dtStr)}${phase ? ` • <span class="diary-phase">${phase}</span>` : ''}</div>
+              <div class="diary-preview">${prev || ''}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = rows.join('');
+    } catch (e) {
+      console.warn('[DIARY] list load failed', e);
+      listEl.innerHTML = `<div class="muted">Error loading diary</div>`;
+    }
+  }
+
+  // optional: CSV Download (Button kann einfach window.location nutzen)
+  function downloadDiaryCsv(){
+    window.location.href = '/api/diary.csv'; // ggf. anpassen
+  }
+
+  // expose if you want to call from HTML onclick
+  window.loadDiaryList = loadDiaryList;
+  window.downloadDiaryCsv = downloadDiaryCsv;
 
   // Phase-Init
   function initPhaseSelect(){
@@ -1368,10 +1452,150 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
+  
+
+  // ---------- Grow Diary (client-side helpers) ----------
+  function parseYmd(str){
+    if (!str || str.length < 10) return null;
+    const y = Number(str.slice(0,4));
+    const m = Number(str.slice(5,7));
+    const d = Number(str.slice(8,10));
+    if (!y || !m || !d) return null;
+    // local midnight
+    return new Date(y, m-1, d, 0, 0, 0, 0);
+  }
+
+  function daysBetween(start, end){
+    if (!start || !end) return null;
+    const ms = end.getTime() - start.getTime();
+    if (!isFinite(ms)) return null;
+    return Math.floor(ms / 86400000);
+  }
+
+  function getPhaseCode(){
+    const sel = document.getElementById('phaseSelect');
+    const v = sel ? sel.value : null;
+    if (v === 'flower') return 'flower';
+    if (v === 'dry') return 'dry';
+    return 'grow';
+  }
+
+  function phaseNameFor(code){
+    // Use i18n phase strings if present
+    const key = (code === 'flower') ? 'runsetting.phase.flower' : (code === 'dry') ? 'runsetting.phase.dry' : 'runsetting.phase.grow';
+    return I18N[key] || code;
+  }
+
+  function updateDiaryCounter(){
+    const ta = document.getElementById('diaryNote');
+    const out = document.getElementById('diaryCount');
+    if (!ta || !out) return;
+    out.textContent = `${ta.value.length}/265`;
+  }
+
+  function updateDiaryUI(){
+    // compute "total grow" from grow start date input (if present)
+    const now = new Date();
+    const nowMid = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0,0);
+
+    const growStartEl = document.getElementById('webGrowStart');
+    const flowerStartEl = document.getElementById('webFloweringStart');
+    const dryStartEl = document.getElementById('webDryingStart');
+
+    const growStart = parseYmd(growStartEl ? growStartEl.value : '');
+    const flowerStart = parseYmd(flowerStartEl ? flowerStartEl.value : '');
+    const dryStart = parseYmd(dryStartEl ? dryStartEl.value : '');
+
+    const gDiff = daysBetween(growStart, nowMid);
+    const gDay  = (gDiff === null || gDiff < 0) ? '–' : String(gDiff + 1);
+    const gWeek = (gDiff === null || gDiff < 0) ? '–' : String(Math.floor(gDiff / 7) + 1);
+
+    setText('diaryGrowDay', gDay);
+    setText('diaryGrowWeek', gWeek);
+
+    const phaseCode = getPhaseCode();
+    setText('diaryPhaseName', phaseNameFor(phaseCode));
+
+    let phaseStart = growStart;
+    if (phaseCode === 'flower' && flowerStart) phaseStart = flowerStart;
+    if (phaseCode === 'dry' && dryStart) phaseStart = dryStart;
+
+    const pDiff = daysBetween(phaseStart, nowMid);
+    const pDay  = (pDiff === null || pDiff < 0) ? '–' : String(pDiff + 1);
+    const pWeek = (pDiff === null || pDiff < 0) ? '–' : String(Math.floor(pDiff / 7) + 1);
+
+    setText('diaryPhaseDay', pDay);
+    setText('diaryPhaseWeek', pWeek);
+
+    updateDiaryCounter();
+    loadDiaryList();
+  }
+
+  // diary events
+  document.getElementById('diaryNote')?.addEventListener('input', updateDiaryCounter);
+
+  document.getElementById('diarySaveBtn')?.addEventListener('click', async () => {
+    const ta = document.getElementById('diaryNote');
+    const status = document.getElementById('diaryStatus');
+    if (!ta) return;
+
+    const note = (ta.value || '').trim();
+    const phase = getPhaseCode();
+
+    if (status) status.textContent = '';
+
+    try {
+      const res = await fetch('/api/diary/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note, phase }),
+        cache: 'no-store'
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      ta.value = '';
+      updateDiaryCounter();
+
+      if (status) status.textContent = I18N['diary.saved'] || 'Saved ✓';
+      setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+    } catch (e) {
+      console.warn('[DIARY] save failed', e);
+      if (status) status.textContent = I18N['diary.error'] || 'Save failed';
+    }
+  });
+
+  document.getElementById('diaryClearBtn')?.addEventListener('click', async () => {
+    const msg = I18N['diary.confirmClear'] || 'Really clear all diary entries?';
+    if (!confirm(msg)) return;
+
+    const status = document.getElementById('diaryStatus');
+    if (status) status.textContent = '';
+
+    try {
+      const res = await fetch('/api/diary/clear', { method: 'POST', cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (status) status.textContent = (I18N['diary.saved'] || 'Saved ✓');
+      setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+      loadDiaryList();
+    } catch (e) {
+      console.warn('[DIARY] clear failed', e);
+      if (status) status.textContent = I18N['diary.error'] || 'Error';
+    }
+  });
+
+  // update diary KPIs when dates / phase change
+  document.getElementById('webGrowStart')?.addEventListener('change', updateDiaryUI);
+  document.getElementById('webFloweringStart')?.addEventListener('change', updateDiaryUI);
+  document.getElementById('webDryingStart')?.addEventListener('change', updateDiaryUI);
+  document.getElementById('phaseSelect')?.addEventListener('change', updateDiaryUI);
+
+document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
     autoScroll = !autoScroll;
     document.getElementById('toggleScrollBtn').textContent = `AutoScroll: ${autoScroll ? 'ON' : 'OFF'}`;
   });
+
+  
 
   // ---------- Variables / State page ----------
   let _lastStateObj = null;
