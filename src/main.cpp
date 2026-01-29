@@ -507,7 +507,10 @@ void setup() {
       Serial.println("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__));
 
       // NTP sync now (only if WiFi up)
-      syncDateTime();
+      logPrint("[BOOT] Starting initial NTP sync...");
+      configTzTime(tzInfo.c_str(), ntpServer.c_str());
+      ntpSyncPending = true;
+      ntpStartMs = millis();
     } else {
       Serial.println("[WIFI] Connect timeout -> start AP");
       espMode = true;
@@ -621,14 +624,8 @@ void setup() {
 // -------------------- loop --------------------
 void loop() {
   server.handleClient();
+  delay(1);
 
-  // Daily NTP sync at 01:00 AM
-  struct tm timeinfo;
-  if (wifiReady && getLocalTime(&timeinfo)) {
-    if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
-      logPrint("Performing daily NTP sync...");
-      configTzTime(tzInfo.c_str(), ntpServer.c_str());
-      lastSyncDay = timeinfo.tm_mday;
-    }
-  }
+  dailyNtpTrigger();
+  ntpSyncTick();
 }

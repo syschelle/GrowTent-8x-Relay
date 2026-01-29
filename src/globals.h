@@ -311,8 +311,10 @@ extern const char* DEFAULT_NTP_SERVER;
 extern String ntpServer;
 extern const char* DEFAULT_TZ_INFO;
 extern String tzInfo;
-extern RTC_DATA_ATTR int lastSyncDay;
 extern struct tm local;
+extern int lastSyncDay;
+extern bool ntpSyncPending;
+extern unsigned long ntpStartMs;
 
 // Buffers / circular logs
 extern const uint32_t READ_INTERVAL_MS;

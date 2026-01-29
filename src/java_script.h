@@ -509,6 +509,72 @@ window.addEventListener('DOMContentLoaded', () => {
     }[ch]));
   };
 
+  // ===================================================================
+  //  Unsaved/Status hint (8s, resets on new message)
+  //  Target element: <span id="unsavedHint" class="dirty-hint" hidden ...>
+  // ===================================================================
+  const unsavedHintEl = document.getElementById('unsavedHint');
+  let _unsavedHintTimer = null;
+
+  /**
+   * Show a status hint for a limited time (default 8s). If called again within
+   * that time, the previous timer is cleared and the new message stays visible
+   * for the full duration.
+   */
+  function showStatusHint(message, { durationMs = 8000 } = {}) {
+    if (!unsavedHintEl) return;
+
+    if (_unsavedHintTimer) {
+      clearTimeout(_unsavedHintTimer);
+      _unsavedHintTimer = null;
+    }
+
+    const msg = (message == null) ? '' : String(message);
+    if (!msg.trim()) {
+      unsavedHintEl.hidden = true;
+      unsavedHintEl.classList.remove('is-visible');
+      return;
+    }
+
+    unsavedHintEl.textContent = msg;
+    unsavedHintEl.hidden = false;
+    unsavedHintEl.classList.add('is-visible');
+
+    _unsavedHintTimer = setTimeout(() => {
+      unsavedHintEl.hidden = true;
+      unsavedHintEl.classList.remove('is-visible');
+      _unsavedHintTimer = null;
+    }, durationMs);
+  }
+
+  /**
+   * Convenience helper: shows the localized "settings.unsaved" text plus optional details.
+   * details can be a string or an object like { temp: 23.1, vpd: 1.2 }.
+   */
+  function showUnsavedHint(details, { durationMs = 8000 } = {}) {
+    const base = (typeof I18N === 'object' && I18N && I18N['settings.unsaved'])
+      ? I18N['settings.unsaved']
+      : 'Änderungen – bitte speichern';
+
+    let extra = '';
+    if (typeof details === 'string' && details.trim()) {
+      extra = ` — ${details.trim()}`;
+    } else if (details && typeof details === 'object') {
+      const parts = [];
+      for (const [k, v] of Object.entries(details)) {
+        if (v === null || typeof v === 'undefined') continue;
+        parts.push(`${k}: ${v}`);
+      }
+      if (parts.length) extra = ` — ${parts.join(' | ')}`;
+    }
+
+    showStatusHint(base + extra, { durationMs });
+  }
+
+  // expose globally so other code can call it:
+  window.showStatusHint = showStatusHint;
+  window.showUnsavedHint = showUnsavedHint;
+
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');
   const sidebar   = $('sidebar');
@@ -1188,32 +1254,6 @@ window.addEventListener('DOMContentLoaded', () => {
     return `${n}|${a}|${b}`;
   }
 
-  // schedule drawing in rAF to keep UI responsive
-  let _pendingHist = null;
-  let _rafScheduled = false;
-  function scheduleHistoryDraw(d){
-    _pendingHist = d;
-    if (_rafScheduled) return;
-    _rafScheduled = true;
-
-    requestAnimationFrame(() => {
-      _rafScheduled = false;
-      const x = _pendingHist; _pendingHist = null;
-      if (!x) return;
-
-      const newSig = [
-        _sig(d.temp), _sig(d.hum), _sig(d.vpd), _sig(d.water),
-        d.intervalSec, d.targetTempC, d.targetVpdKpa
-      ].join('||');
-
-      if (!force && newSig === _histSig) return;
-      _histSig = newSig;
-
-      scheduleHistoryDraw(d);
-    });
-  }  
- 
-
   window.updateHistoryCharts = async function(force){
     try {
       if (!force && getActivePageId() !== 'status') return;
@@ -1245,63 +1285,11 @@ window.addEventListener('DOMContentLoaded', () => {
     setText('capturedSpan', 'N/A');
     // averages optional
   }
-  window.updateSensorValues = updateSensorValues;
-  window._startSensorPoll();     // intervall start
+    window._startSensorPoll();     // intervall start
   window.updateSensorValues();
   window.updateHistoryCharts(true);
 
-  window.updateSensorValues = updateSensorValues;
-
-  // ---------- Relay helpers ----------
-  function toggleRelay(nr) {
-    const idx = nr - 1;
-    fetch(`/relay/${nr}/toggle`, { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        if (typeof data.state !== 'undefined') {
-          relayStates[idx] = !!data.state;
-        } else {
-          relayStates[idx] = !relayStates[idx];
-        }
-        updateRelayButtons();
-      })
-      .catch(err => {
-        console.error('toggle relay failed:', err);
-      });
-  }
-
-  // ---------- irrigation helpers ----------
-  function onForTenSec(nr) {
-    const idx = nr - 1;
-    fetch(`/relay/${nr}/onFor10Sec`, { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        if (typeof data.state !== 'undefined') {
-          relayStates[idx] = !!data.state;
-        } else {
-          relayStates[idx] = !relayStates[idx];
-        }
-        updateRelayButtons();
-      })
-      .catch(err => {
-        console.error('toggle relay failed:', err);
-      });
-  }
-
-  function updateRelayButtons() {
-    for (let i = 0; i < relayStates.length; i++) {
-      const btn = document.getElementById(`relay-Status${i+1}`);
-      if (!btn) continue;
-      if (relayStates[i]) {
-        btn.classList.add('on');
-        btn.classList.remove('off');
-      } else {
-        btn.classList.add('off');
-        btn.classList.remove('on');
-      }
-    }
-  }
-
+  
   // ---------- Embedded Web-Log ----------
   let logTimer = null;  // (nur EINMAL deklarieren)
   let autoScroll = true;
@@ -1323,15 +1311,12 @@ window.addEventListener('DOMContentLoaded', () => {
       console.warn('weblog fetch failed', e);
     }
   }
+  const pre = document.getElementById('weblog');
+  if (!pre) return;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const pre = document.getElementById('weblog');
-    if (!pre) return;
-
-    pre.addEventListener('scroll', () => {
-      const nearBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
-      autoScroll = nearBottom;
-    });
+  pre.addEventListener('scroll', () => {
+    const nearBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
+    autoScroll = nearBottom;
   });
 
   function startWebLog() {

@@ -530,21 +530,71 @@ void handleFactoryReset() {
   ESP.restart();
 }
 
-// NTP sync
-void syncDateTime() {
-  // syncing NTP time
-  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo);
-  configTzTime(tzInfo.c_str(), ntpServer.c_str());  // Synchronizing ESP32 system time with NTP
-  if (getLocalTime(&local, 10000)) { // Try to synchronize up to 10s
-    // set actual date in global variable actualDate
-    char readDate[11]; // YYYY-MM-DD + null
+// initial NTP sync (called at boot)
+void initialSyncBlocking() {
+  logPrint("[BOOT] Initial NTP sync...");
+
+  // Start Sync
+  configTzTime(tzInfo.c_str(), ntpServer.c_str());
+
+  struct tm local;
+  unsigned long start = millis();
+
+  // Wait up to 2 seconds for time
+  while (millis() - start < 2000) {
+    if (getLocalTime(&local, 50)) {
+      char buf[64];
+      strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", &local);
+      logPrint(String("[BOOT] Time initialized: ") + buf);
+      return;
+    }
+    delay(50); // do not block completely
+  }
+
+  logPrint("[BOOT] Failed initial NTP sync");
+}
+
+// Daily NTP trigger at 01:00
+void dailyNtpTrigger() {
+  if (!wifiReady) return;
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 50)) return;  // try to get time (non-blocking, max 50ms)
+
+  if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
+    logPrint("Performing daily NTP sync...");
+    configTzTime(tzInfo.c_str(), ntpServer.c_str());
+
+    ntpSyncPending = true;
+    ntpStartMs = millis();
+
+    // so it really only fires once per day:
+    lastSyncDay = timeinfo.tm_mday;
+  }
+}
+
+// NTP sync tick (non-blocking)
+void ntpSyncTick() {
+  if (!ntpSyncPending) return;
+
+  struct tm local;
+  // try to get time (non-blocking, max 50ms)
+  if (getLocalTime(&local, 50)) {
+    char readDate[11];
     strftime(readDate, sizeof(readDate), "%Y-%m-%d", &local);
-    lastSyncDay = local.tm_mday;
+
     char buf[64];
     strftime(buf, sizeof(buf), "now: %d.%m.%y  Zeit: %H:%M:%S", &local);
-    logPrint(String("[DATETIME] ") + buf);  // Format date print output
-  } else {
-    logPrint("[DATETIME] Failed to obtain time");
+    logPrint(String("[DATETIME] ") + buf);
+
+    ntpSyncPending = false;
+    return;
+  }
+
+  // timeout after 15 seconds
+  if (millis() - ntpStartMs > 15000) {
+    logPrint("[DATETIME] NTP sync timeout (non-blocking)");
+    ntpSyncPending = false;
   }
 }
 

@@ -92,6 +92,11 @@ const char* KEY_GOTIFY = "gotify";
 const char* KEY_GOTIFYSERVER = "gotifyServer";
 const char* KEY_GOTIFYTOKEN = "gotifyToken";
 
+// NTP/time globals
+int lastSyncDay = -1;
+bool ntpSyncPending = false;
+unsigned long ntpStartMs = 0;
+
 // Legacy/global UI vars (used throughout runtime.h/function.h)
 String boxName = "newGrowTent";
 String language = "de";
@@ -167,7 +172,6 @@ String ntpServer = DEFAULT_NTP_SERVER;
 const char* DEFAULT_TZ_INFO = "WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";
 String tzInfo = DEFAULT_TZ_INFO;
 
-RTC_DATA_ATTR int lastSyncDay = -1;
 struct tm local;
 
 // Timing
