@@ -1178,6 +1178,14 @@ window.addEventListener('DOMContentLoaded', () => {
     if (min2 === max2) { min2 -= 0.5; max2 += 0.5; }
   }
 
+  // If the series is flat (often happens when only the first value exists),
+  // expand the range a bit so the grid and the first red marker can be drawn.
+  if (min2 !== null && max2 !== null && min2 === max2) {
+    const eps = (decimals >= 2) ? 0.05 : (decimals === 1 ? 0.5 : 1);
+    min2 -= eps;
+    max2 += eps;
+  }
+
   const minEl = document.getElementById(minSpanId);
   const avgEl = document.getElementById(avgSpanId);
   const maxEl = document.getElementById(maxSpanId);
@@ -1252,8 +1260,19 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.lineTo(padLeft, h - padBottom);
   ctx.stroke();
   ctx.restore();
+  if (min2 === null || max2 === null) return;
 
-  if (min2 === null || max2 === null || drawArr.length < 2) return;
+  // Count finite values; if we only have one, draw a small start marker instead of a line.
+  let firstValid = -1;
+  let validCount = 0;
+  for (let i = 0; i < drawArr.length; i++) {
+    const v = drawArr[i];
+    if (typeof v === 'number' && isFinite(v)) {
+      if (firstValid < 0) firstValid = i;
+      validCount++;
+    }
+  }
+  if (validCount === 0) return;
 
   const n = drawArr.length;
 
@@ -1317,25 +1336,45 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.strokeStyle = 'red';
   ctx.lineWidth = 2;
 
-  ctx.beginPath();
-  let started = false;
-  for (let i = 0; i < n; i++) {
-    const v = drawArr[i];
-    if (v === null || typeof v !== 'number' || !isFinite(v)) {
-      started = false;
-      continue;
+  if (validCount >= 2) {
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      const v = drawArr[i];
+      if (v === null || typeof v !== 'number' || !isFinite(v)) {
+        started = false;
+        continue;
+      }
+      const x = padLeft + xStep * i;
+      const y = padTop + (max2 - v) * yScale;
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
-    const x = padLeft + xStep * i;
+    ctx.stroke();
+  } else if (firstValid >= 0) {
+    // Only one value so far: draw a small "start bar" so the user sees something immediately.
+    const v = drawArr[firstValid];
+    const x = padLeft + xStep * firstValid;
     const y = padTop + (max2 - v) * yScale;
-    if (!started) {
-      ctx.moveTo(x, y);
-      started = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
+
+    // vertical mini bar + dot
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6);
+    ctx.lineTo(x, y + 6);
+    ctx.stroke();
+
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
-  ctx.stroke();
+
   ctx.restore();
+
  }
 
   // Only redraw when history actually changes

@@ -243,11 +243,8 @@ const char cssContent[] PROGMEM = R"rawliteral(
       border-radius: var(--radius);
       padding:10px;
       background: var(--muted);
-<<<<<<< HEAD
       /* isolate layout/paint to reduce redraw cost */
       contain: layout paint;
-=======
->>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
     }
     .chart-title{font-weight:600; font-size:.95rem; opacity:.9; margin-bottom:6px}
     .chart-foot {
