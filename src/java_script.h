@@ -1060,7 +1060,7 @@ if (!statusActive) return;
 
 
       // ---------- Grow Light ----------
-      const lightStateEl = document.getElementById('shelly-light-state');
+      const lightStateEl = (document.getElementById('shelly-light-switch-state') || document.getElementById('shelly-light-state'));
       if (lightStateEl) {
         // support both flat fields and nested shelly.light.values
         const v = (data && data.shelly && data.shelly.light && data.shelly.light.values) ? data.shelly.light.values : null;
