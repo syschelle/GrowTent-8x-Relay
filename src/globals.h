@@ -360,3 +360,10 @@ extern uint32_t lastCompact;
 extern const uint32_t COMPACT_EVERY_MS;
 extern const unsigned long LOG_INTERVAL_MS;
 extern unsigned long lastLog;
+
+String csvFieldToString(const String& s);
+
+// Web UI payloads (PROGMEM)
+extern const char jsContent[] PROGMEM;
+extern const char cssContent[] PROGMEM;
+extern const char htmlContent[] PROGMEM;

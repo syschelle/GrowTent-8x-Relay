@@ -540,9 +540,17 @@ const char cssContent[] PROGMEM = R"rawliteral(
       border-color: rgba(200,60,60,0.85);
     }
 
-)rawliteral";
-
 /* -------------------- Grow Diary -------------------- */
+
+#diaryNote{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  min-height:140px;
+  resize:vertical;
+}
+
+
 
   .diary-row{
     display:flex;
@@ -576,4 +584,4 @@ const char cssContent[] PROGMEM = R"rawliteral(
     border-color: rgba(255,80,80,0.35);
   }
 
-
+)rawliteral";

@@ -391,11 +391,7 @@ static bool rewriteDiaryWithMutation(const String& idStr, bool doDelete, const S
   return LittleFS.rename(TMP, DIARY_PATH);
 }
 
-static String csvFieldToString(const String& s) {
-  String t = s;
-  t.trim();
-  return t;
-}
+
 
 // Parse local timestamp "YYYY-MM-DD HH:MM:SS" -> unix seconds (local time). Returns 0 on failure.
 static time_t parseLocalTimestamp(const String& tsLocal) {
@@ -477,7 +473,7 @@ static void handleDiaryList() {
 
     String obj;
     obj.reserve(256);
-    obj += "{\"id\":\"" + jEsc(diaryId) + "\"",\"date\":\"" + jEsc(tsLocal) + "\"";
+    obj += "{\"id\":\"" + jEsc(diaryId) + "\",\"date\":\"" + jEsc(tsLocal) + "\"";
     if (ts > 0) obj += ",\"ts\":" + String((uint32_t)ts);
     if (phase.length()) obj += ",\"phase\":\"" + jEsc(phase) + "\"";
     if (note.length())  obj += ",\"note\":\""  + jEsc(note)  + "\"";
@@ -512,20 +508,24 @@ static void handleDiaryAdd() {
   // --- read note + optional phase ---
   String note;
   String phaseStr;
-
+  String lang;
+  String metaStr;
   if (server.hasArg("plain") && server.arg("plain").length()) {
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
     if (!err) {
       note = (const char*) (doc["note"] | "");
       phaseStr = (const char*) (doc["phase"] | "");
+      lang = (const char*) (doc["lang"] | "");
+      metaStr = (const char*) (doc["meta"] | "");
     }
   }
   if (!note.length() && server.hasArg("note")) note = server.arg("note");
   if (!phaseStr.length() && server.hasArg("phase")) phaseStr = server.arg("phase");
-
+  if (!lang.length() && server.hasArg("lang")) lang = server.arg("lang");
+  if (!metaStr.length() && server.hasArg("meta")) metaStr = server.arg("meta");
   note.trim();
-  if (note.length() > 265) note = note.substring(0, 265);
+  if (note.length() > 400) note = note.substring(0, 400);
 
   // Determine current phase (fallback to global curPhase if not provided)
   int phase = curPhase;
@@ -556,6 +556,47 @@ static void handleDiaryAdd() {
   const int phaseDiff = daysSince(phaseStart, nowLocalMidnight);
   const int phaseDay  = (phaseDiff >= 0) ? (phaseDiff + 1) : 0;
   const int phaseWeek = (phaseDay > 0) ? ((phaseDay - 1) / 7 + 1) : 0;
+  // --- enrich note with current grow status (localized) ---
+  String meta = metaStr;
+  meta.trim();
+
+  if (!meta.length()) {
+    // Fallback to backend computation if frontend didn't send meta
+    String langCode = lang;
+    langCode.toLowerCase();
+    if (!(langCode == "en")) langCode = "de";
+
+    String phaseName = phaseStr;
+    phaseName.toLowerCase();
+
+    auto phaseLabel = [&](const String& code) -> String {
+      const String c = String(code);
+      if (langCode == "en") {
+        if (c == "flower") return "Flower";
+        if (c == "dry")    return "Dry";
+        return "Grow";
+      } else {
+        if (c == "flower") return "Blüte";
+        if (c == "dry")    return "Trocknen";
+        return "Wachstum";
+      }
+    };
+
+    const String wLabel = (langCode == "en") ? "Week" : "Woche";
+    const String dLabel = (langCode == "en") ? "Day"  : "Tag";
+
+    meta.reserve(96);
+    meta += "Grow: ";
+    meta += wLabel + " " + String(growWeek) + " " + dLabel + " " + String(growDay);
+    meta += " | ";
+    meta += phaseLabel(phaseName) + ": ";
+    meta += wLabel + " " + String(phaseWeek) + " " + dLabel + " " + String(phaseDay);
+  }
+
+  if (meta.length()) {
+    if (note.length()) note = "(" + meta + ")  " + note;
+    else note = meta;
+  }
 
   // --- timestamp ---
   char tsBuf[32];

@@ -217,3 +217,9 @@ uint32_t lastCompact = 0;
 const uint32_t COMPACT_EVERY_MS = 3600UL * 1000UL;
 const unsigned long LOG_INTERVAL_MS = 60000;
 unsigned long lastLog = 0;
+
+String csvFieldToString(const String& s) {
+  String t = s;
+  t.trim();
+  return t;
+}

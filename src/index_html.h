@@ -367,10 +367,10 @@ const char* htmlPage = R"rawliteral(
       <div class="spacer"></div>
 
       <div class="form-group">
-        <label for="diaryNote" data-i18n="diary.note">Note (max 265 characters)</label>
-        <textarea id="diaryNote" maxlength="265" rows="4" placeholder="..." data-i18n-attr="placeholder" data-i18n="diary.note.ph"></textarea>
+        <label for="diaryNote" data-i18n="diary.note">Note (max 400 characters)</label>
+        <textarea id="diaryNote" maxlength="400" rows="4" placeholder="..." data-i18n-attr="placeholder" data-i18n="diary.note.ph"></textarea>
         <div class="diary-foot">
-          <span id="diaryCount">0/265</span>
+          <span id="diaryCount">0/400</span>
           <span id="diaryStatus" class="muted"> </span>
         </div>
       </div>
@@ -684,33 +684,33 @@ const char* htmlPage = R"rawliteral(
         </div>
 
         <div class="form-group">
-          <input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" style="width: 250px;" maxlength="15" value="%DS18B20NAME%">
+          <input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" style="width: 250px;" maxlength="400" value="%DS18B20NAME%">
         </div>
 
         <h2 data-i18n="settings.relaySettings">Relais Einstellungen</h2>
         <div class="form-group">
           <label for="webRelay1" data-i18n="settings.relay1">Relay 1:</label>
-          <input name="webRelayName1" id="webRelayName1" type="text" data-i18n="settings.relay1.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES1%">
+          <input name="webRelayName1" id="webRelayName1" type="text" data-i18n="settings.relay1.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="400" value="%RELAYNAMES1%">
         </div>
 
         <div class="form-group">
           <label for="webRelay2" data-i18n="settings.relay2">Relay 2:</label>
-          <input name="webRelayName2" id="webRelayName2" type="text" data-i18n="settings.relay2.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES2%">
+          <input name="webRelayName2" id="webRelayName2" type="text" data-i18n="settings.relay2.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="400" value="%RELAYNAMES2%">
         </div>
 
         <div class="form-group">
           <label for="webRelay3" data-i18n="settings.relay3">Relay 3:</label>
-          <input name="webRelayName3" id="webRelayName3" type="text" data-i18n="settings.relay3.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES3%">
+          <input name="webRelayName3" id="webRelayName3" type="text" data-i18n="settings.relay3.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="400" value="%RELAYNAMES3%">
         </div>
 
         <div class="form-group">
           <label for="webRelay4" data-i18n="settings.relay4">Relay 4:</label>
-          <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES4%">
+          <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="400" value="%RELAYNAMES4%">
         </div>
 
         <div class="form-group">
           <label for="webRelay5" data-i18n="settings.relay5">Relay 5:</label>
-          <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES5%">
+          <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="400" value="%RELAYNAMES5%">
         </div>
 
         <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>

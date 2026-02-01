@@ -294,7 +294,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "diary.phase": { de: "Phase", en: "Phase" },
   "diary.day": { de: "Tag", en: "Day" },
   "diary.week": { de: "Woche", en: "Week" },
-  "diary.note": { de: "Notiz (max. 265 Zeichen)", en: "Note (max 265 characters)" },
+  "diary.note": { de: "Notiz (max. 400 Zeichen)", en: "Note (max 400 characters)" },
   "diary.note.ph": { de: "z. B. Gießen, Dünger, Beobachtungen…", en: "e.g. watering, nutrients, observations…" },
   "diary.save": { de: "Eintrag speichern", en: "Save entry" },
   "diary.download": { de: "CSV herunterladen", en: "Download CSV" },
@@ -1640,7 +1640,9 @@ if (!statusActive) return;
 
   function getPhaseCode(){
     const sel = document.getElementById('phaseSelect');
-    const v = sel ? sel.value : null;
+    let v = sel ? sel.value : null;
+    // Fallback to the current runtime phase provided by the backend template
+    if (!v) v = '%PHASE%';
     if (v === 'flower') return 'flower';
     if (v === 'dry') return 'dry';
     return 'grow';
@@ -1656,10 +1658,44 @@ if (!statusActive) return;
     const ta = document.getElementById('diaryNote');
     const out = document.getElementById('diaryCount');
     if (!ta || !out) return;
-    out.textContent = `${ta.value.length}/265`;
+    out.textContent = `${ta.value.length}/400`;
   }
 
   function updateDiaryUI(){
+    // Prefer the header grow-info because it is already computed correctly (phase + total grow) and localized.
+    const gi = document.querySelector('.grow-info');
+    if (gi) {
+      const raw = (gi.innerText || gi.textContent || '').trim();
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+      const parseLine = (line) => {
+        // Supports DE: "... Tag 63 / Woche 9" and EN: "... day 63 / week 9"
+        const m = line.match(/(?:Tag|Tage|day|days)\s*(\d+)\s*\/\s*(?:Woche|week)\s*(\d+)/i);
+        const day = m ? m[1] : null;
+        const week = m ? m[2] : null;
+        // label before ":" if present
+        const lm = line.match(/^\s*([^:]+):/);
+        const label = lm ? lm[1].trim() : '';
+        return { day, week, label };
+      };
+
+      if (lines.length >= 1) {
+        const g = parseLine(lines[0]);
+        if (g.day)  setText('diaryGrowDay', g.day);
+        if (g.week) setText('diaryGrowWeek', g.week);
+      }
+      if (lines.length >= 2) {
+        const p = parseLine(lines[1]);
+        if (p.label) setText('diaryPhaseName', p.label.toUpperCase());
+        if (p.day)  setText('diaryPhaseDay', p.day);
+        if (p.week) setText('diaryPhaseWeek', p.week);
+      }
+
+      // Also keep meta inside the note field in sync
+      applyDiaryMetaToTextarea();
+      return;
+    }
+
     // compute "total grow" from grow start date input (if present)
     const now = new Date();
     const nowMid = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0,0);
@@ -1693,19 +1729,76 @@ if (!statusActive) return;
     setText('diaryPhaseDay', pDay);
     setText('diaryPhaseWeek', pWeek);
 
+    // Show the current grow/phase status directly inside the note field
+    applyDiaryMetaToTextarea();
     updateDiaryCounter();
     loadDiaryList();
   }
 
-  // diary events
-  document.getElementById('diaryNote')?.addEventListener('input', updateDiaryCounter);
+  
+  function computeDiaryMetaText(){
+    // Prefer the header info because it already reflects the correct start dates and is localized.
+    const gi = document.querySelector('.grow-info');
+    if (gi) {
+      const raw = (gi.innerText || gi.textContent || '').trim();
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (lines.length) return lines.join(' | ');
+    }
+
+    // Fallback: compute from diary UI fields
+    const gW = (document.getElementById('diaryGrowWeek')?.textContent || '–').trim();
+    const gD = (document.getElementById('diaryGrowDay')?.textContent  || '–').trim();
+    const pW = (document.getElementById('diaryPhaseWeek')?.textContent || '–').trim();
+    const pD = (document.getElementById('diaryPhaseDay')?.textContent  || '–').trim();
+
+    const phaseCode = getPhaseCode();
+    const phaseName = phaseNameFor(phaseCode);
+
+    const lang = (typeof currentLang === 'string' ? currentLang : 'de');
+    const wLabel = (lang === 'en') ? 'Week' : 'Woche';
+    const dLabel = (lang === 'en') ? 'Day'  : 'Tag';
+    const growLabel = (lang === 'en') ? 'Grow' : 'Grow';
+
+    return `${growLabel}: ${wLabel} ${gW} ${dLabel} ${gD} | ${phaseName}: ${wLabel} ${pW} ${dLabel} ${pD}`;
+  }
+
+  function stripDiaryMeta(raw){
+    const s = String(raw || '');
+    // Remove a leading "(meta ...)" block that contains grow/phase timing hints (localized).
+    return s.replace(/^\s*\((?=[^)]+(?:Woche|Week|Grow|Blüte|Flower|Trock|Dry))[^)]*\)\s*/i, '').trimStart();
+  }
+
+  function applyDiaryMetaToTextarea(){
+    const ta = document.getElementById('diaryNote');
+    if (!ta) return;
+
+    const base = stripDiaryMeta(ta.value);
+    const meta = computeDiaryMetaText();
+
+    // Only append meta if we have numeric values
+    const hasNumbers = /\b\d+\b/.test(meta);
+    const nextVal = hasNumbers ? (base.length ? `(${meta})  ${base}` : `(${meta})`) : base;
+
+    // Avoid cursor jumps if nothing changes
+    if (ta.value !== nextVal) {
+      const wasAtEnd = (ta.selectionStart === ta.value.length && ta.selectionEnd === ta.value.length);
+      ta.value = nextVal;
+      if (wasAtEnd) {
+        ta.selectionStart = ta.selectionEnd = ta.value.length;
+      }
+      updateDiaryCounter();
+    }
+  }
+
+// diary events
+  document.getElementById('diaryNote')?.addEventListener('input', () => { updateDiaryCounter(); applyDiaryMetaToTextarea(); });
 
   document.getElementById('diarySaveBtn')?.addEventListener('click', async () => {
     const ta = document.getElementById('diaryNote');
     const status = document.getElementById('diaryStatus');
     if (!ta) return;
 
-    const note = (ta.value || '').trim();
+    const note = stripDiaryMeta((ta.value || '')).trim();
     const phase = getPhaseCode();
 
     if (status) status.textContent = '';
@@ -1714,7 +1807,7 @@ if (!statusActive) return;
       const res = await fetch('/api/diary/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note, phase }),
+        body: JSON.stringify({ note, phase, lang: (typeof currentLang === "string" ? currentLang : "de"), meta: computeDiaryMetaText() }),
         cache: 'no-store'
       });
 

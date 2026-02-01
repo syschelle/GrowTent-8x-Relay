@@ -621,22 +621,36 @@ void ntpSyncTick() {
 
 // calculate elapsed days and weeks from defined date
 void calculateTimeSince(const String& startDate, int &days, int &weeks) {
-  struct tm tmStart = { 0 };
-  int y, m, d;
-  sscanf(startDate.c_str(), "%d-%d-%d", &y, &m, &d);
+  // Compute "day N / week M" since a given YYYY-MM-DD (local time).
+  // NOTE: weeks must be computed as ((days-1)/7)+1 to avoid an off-by-one at day 7, 14, ...
+  days = 0;
+  weeks = 0;
+
+  int y = 0, m = 0, d = 0;
+  if (sscanf(startDate.c_str(), "%d-%d-%d", &y, &m, &d) != 3) {
+    return;
+  }
+
+  struct tm tmStart {};
   tmStart.tm_mday = d;
-  tmStart.tm_mon = m - 1;
+  tmStart.tm_mon  = m - 1;
   tmStart.tm_year = y - 1900;
   tmStart.tm_hour = 0;
-  tmStart.tm_min = 1;
-  time_t startEpoch = mktime(&tmStart);
-  time_t nowEpoch = time(nullptr);
-  long diffSec = nowEpoch - startEpoch;
-  days = (diffSec / 86400) + 1;
-  weeks = (days / 7) + 1;
+  tmStart.tm_min  = 0;
+  tmStart.tm_sec  = 0;
+  tmStart.tm_isdst = -1;
 
-  logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
+  const time_t startEpoch = mktime(&tmStart);
+  const time_t nowEpoch   = time(nullptr);
+  if (startEpoch <= 0 || nowEpoch <= 0) return;
+
+  long diffSec = (long)(nowEpoch - startEpoch);
+  if (diffSec < 0) diffSec = 0;
+
+  days = (int)(diffSec / 86400L) + 1;
+  weeks = (days > 0) ? ((days - 1) / 7 + 1) : 0;
 }
+
 
 // Convert minutes to milliseconds (int return type)
 int minutesToMilliseconds(int minutes) {
