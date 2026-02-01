@@ -91,8 +91,8 @@ const char* htmlPage = R"rawliteral(
         <span id="capturedSpan">--</span>
       </p>
       <p style="margin-top:10px">
-        <a class="btn" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
-        <a class="btn" href="/deletelog" data-i18n="status.delete">CSV löschen</a>
+        <a class="btn danger" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
+        <a class="btn danger" href="/deletelog" data-i18n="status.delete">CSV löschen</a>
       </p>
       
       <div class="spacer"></div>
@@ -383,7 +383,7 @@ const char* htmlPage = R"rawliteral(
 
       <div class="btn-row">
         <button type="button" class="btn primary" id="diarySaveBtn" data-i18n="diary.save">Save entry</button>
-        <a class="btn" href="/api/diary.csv" id="diaryDownloadBtn" data-i18n="diary.download">Download CSV</a>
+        <a class="btn danger" href="/api/diary.csv" id="diaryDownloadBtn" data-i18n="diary.download">Download CSV</a>
         <button type="button" class="btn danger" id="diaryClearBtn" data-i18n="diary.clear">Clear diary</button>
       </div>
 
