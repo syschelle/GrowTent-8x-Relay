@@ -315,8 +315,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
 // ---------- Sensor polling ----------
 window.sensorTimer = null;
+<<<<<<< HEAD
 // Sensor poll interval (ms). We'll dynamically slow down when Status page is not visible.
 window._sensorPollMs = 10000;
+=======
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
 
 // ---- relay state (NUM_RELAYS = 8 on firmware side) ----
 const RELAY_COUNT = 8;
@@ -332,6 +335,7 @@ window._stopSensorPoll = function () {
 
 window._startSensorPoll = function () {
   if (!window.sensorTimer && typeof window.updateSensorValues === 'function') {
+<<<<<<< HEAD
     window.sensorTimer = setInterval(window.updateSensorValues, window._sensorPollMs || 10000);
   }
 };
@@ -345,6 +349,9 @@ window._setSensorPollInterval = function(ms){
     clearInterval(window.sensorTimer);
     window.sensorTimer = null;
     window._startSensorPoll();
+=======
+    window.sensorTimer = setInterval(window.updateSensorValues, 10000);
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
   }
 };
 
@@ -879,10 +886,13 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       const data = await response.json();
 
+<<<<<<< HEAD
       // Only do heavy DOM work when the status page (with grids) is visible.
       // This dramatically reduces layout/reflow cost on other pages.
       const statusActive = (getActivePageId() === 'status');
 
+=======
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       // ESP stats (CPU load)
       if (typeof data.espLoadPct === 'number') {
         setText('espLoadSpan', data.espLoadPct.toFixed(0));
@@ -890,9 +900,12 @@ window.addEventListener('DOMContentLoaded', () => {
         setText('espLoadSpan', '--');
       }
 
+<<<<<<< HEAD
       // If we're not on the Status page, stop here (CPU load in header is still updated).
       if (!statusActive) return;
 
+=======
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       // current
       if (isNum(data.curTemperature))        { setText('tempSpan', data.curTemperature.toFixed(1)); }
       if (isNum(data.curWaterTemperature))   { setText('waterTempSpan', data.curWaterTemperature.toFixed(1)); }
@@ -925,6 +938,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         setShellyStateClass(mainSwitchEl, isOn);
 
+<<<<<<< HEAD
         // Create child nodes once (avoid innerHTML churn + reflow every 10s)
         if (!mainSwitchEl._pwr) {
           mainSwitchEl.textContent = '';
@@ -938,6 +952,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         mainSwitchEl._pwr.textContent = `${powerW.toFixed(1)} W`;
         mainSwitchEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+=======
+        mainSwitchEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       }
 
       // ---------- Heater ----------
@@ -954,6 +974,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         setShellyStateClass(heaterStateEl, isOn);
 
+<<<<<<< HEAD
         if (!heaterStateEl._pwr) {
           heaterStateEl.textContent = '';
           const p = document.createElement('div');
@@ -966,6 +987,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         heaterStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
         heaterStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+=======
+        heaterStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       }
 
       // ---------- Humidifier ----------
@@ -982,6 +1009,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         setShellyStateClass(humidifierStateEl, isOn);
 
+<<<<<<< HEAD
         if (!humidifierStateEl._pwr) {
           humidifierStateEl.textContent = '';
           const p = document.createElement('div');
@@ -994,6 +1022,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         humidifierStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
         humidifierStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+=======
+        humidifierStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       }
 
       // ---------- Fan ----------
@@ -1010,6 +1044,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         setShellyStateClass(fanStateEl, isOn);
 
+<<<<<<< HEAD
         if (!fanStateEl._pwr) {
           fanStateEl.textContent = '';
           const p = document.createElement('div');
@@ -1022,6 +1057,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         fanStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
         fanStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+=======
+        fanStateEl.innerHTML = `
+          <div>${powerW.toFixed(1)} W</div>
+          <div class="sub">${totalKWh.toFixed(2)} kWh</div>
+        `;
+>>>>>>> 060a41f684ef450c76f2708218e026dda2b3e3c4
       }
 
       // ---------- Averages ----------
