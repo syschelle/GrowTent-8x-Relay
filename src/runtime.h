@@ -192,6 +192,25 @@ void handleRoot() {
       html.replace("%SHMAINSWKIND3%", "");
     }
 
+    html.replace("%SHELLYLIGHTIP%", settings.shelly.light.ip);
+    if (settings.shelly.light.gen == 1) {
+      html.replace("%SHLIGHTKIND1%", "selected");
+      html.replace("%SHLIGHTKIND2%", "");
+      html.replace("%SHLIGHTKIND3%", "");
+    } else if (settings.shelly.light.gen == 2) {
+      html.replace("%SHLIGHTKIND1%", "");
+      html.replace("%SHLIGHTKIND2%", "selected");
+      html.replace("%SHLIGHTKIND3%", "");
+    } else if (settings.shelly.light.gen == 3) {
+      html.replace("%SHLIGHTKIND1%", "");
+      html.replace("%SHLIGHTKIND2%", "");
+      html.replace("%SHLIGHTKIND3%", "selected");
+    } else {
+      html.replace("%SHLIGHTKIND1%", "");
+      html.replace("%SHLIGHTKIND2%", "");
+      html.replace("%SHLIGHTKIND3%", "");
+    }
+
     html.replace("%SHELLYHEATERIP%", settings.shelly.heat.ip);
     if (settings.shelly.heat.gen == 1) {
       html.replace("%SHHEATKIND1%", "selected");
@@ -319,12 +338,19 @@ void readPreferences() {
   // Shelly devices
   loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");
   loadPrefInt(KEY_SHELLYMAINGEN, settings.shelly.main.gen, 0, true, "Shelly Main Generation");
+  loadPrefString(KEY_SHELLYLIGHTIP, settings.shelly.light.ip, "", true, "Shelly Light IP");
+  loadPrefInt(KEY_SHELLYLIGHTGEN, settings.shelly.light.gen, 0, true, "Shelly Light Generation");
   loadPrefString(KEY_SHELLYHEATIP, settings.shelly.heat.ip, "", true, "Shelly Heater IP");
   loadPrefInt(KEY_SHELLYHEATGEN, settings.shelly.heat.gen, 0, true, "Shelly Heater Generation");
   loadPrefString(KEY_SHELLYHUMIP, settings.shelly.hum.ip, "", true, "Shelly Humidifier IP");
   loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.hum.gen, 0, true, "Shelly Humidifier Generation");
   loadPrefString(KEY_SHELLYFANIP, settings.shelly.fan.ip, "", true, "Shelly Fan IP");
   loadPrefInt(KEY_SHELLYFANGEN, settings.shelly.fan.gen, 0, true, "Shelly Fan Generation");
+  loadPrefFloat(KEY_SHELLYMAINOFF, settings.shelly.main.energyOffsetWh, 0.0f, true, "Shelly Main Energy Offset");
+  loadPrefFloat(KEY_SHELLYLIGHTOFF, settings.shelly.light.energyOffsetWh, 0.0f, true, "Shelly Light Energy Offset");
+  loadPrefFloat(KEY_SHELLYHEATOFF, settings.shelly.heat.energyOffsetWh, 0.0f, true, "Shelly Heat Energy Offset");
+  loadPrefFloat(KEY_SHELLYHUMOFF,  settings.shelly.hum.energyOffsetWh,  0.0f, true, "Shelly Hum Energy Offset");
+  loadPrefFloat(KEY_SHELLYFANOFF,  settings.shelly.fan.energyOffsetWh,  0.0f, true, "Shelly Fan Energy Offset");
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
   loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");
@@ -524,6 +550,26 @@ String readSensorData() {
       json += "\"shellyMainSwitchTotalWh\":" + String(shelly.main.values.energyWh, 2) + ",\n";
     } else {
       json += "\"shellyMainSwitchTotalWh\":null,\n";
+    }
+  }
+
+  // ---- Shelly Light ----
+  if (!shelly.light.values.ok) {
+    logPrint("[API] LIGHT request not ok");
+    json += "\"shellyLightStatus\":false,\n";
+    json += "\"shellyLightPower\":null,\n";
+    json += "\"shellyLightTotalWh\":null,\n";
+  } else {
+    json += "\"shellyLightStatus\":" + String(shelly.light.values.isOn ? "true" : "false") + ",\n";
+    if (!isnan(shelly.light.values.powerW) && !isinf(shelly.light.values.powerW)) {
+      json += "\"shellyLightPower\":" + String(shelly.light.values.powerW, 2) + ",\n";
+    } else {
+      json += "\"shellyLightPower\":null,\n";
+    }
+    if (!isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
+      json += "\"shellyLightTotalWh\":" + String(shelly.light.values.energyWh, 2) + ",\n";
+    } else {
+      json += "\"shellyLightTotalWh\":null,\n";
     }
   }
 

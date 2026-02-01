@@ -929,6 +929,7 @@ void setup() {
   server.on("/saveshellysettings", HTTP_POST, handleSaveShellySettings);
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
   server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
+  server.on("/api/newgrow", HTTP_POST, handleNewGrow);
 
   server.on("/style.css", []() { server.send_P(200, "text/css", cssContent); });
   server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });

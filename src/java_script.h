@@ -117,6 +117,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.shellyHeater": { de: "Heizung", en: "Heater" },
   "status.shellyHumidifier": { de: "Luftbefeuchter", en: "Humidifier" },
   "status.shellyFan": { de: "Ventilator", en: "Fan" },
+  "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
   "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
   "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },
 
@@ -124,6 +125,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   /* -------------------- runsetting.* -------------------- */
   "runsetting.title": { de: "Betriebseinstellungen", en: "Operating settings" },
+    "runsetting.newGrowError": {"de": "Fehler: Neuer Grow konnte nicht gesetzt werden.", "en": "Error: could not set new grow."},
+    "runsetting.newGrowDone": {"de": "Neuer Grow wurde gesetzt.", "en": "New grow has been set."},
+    "runsetting.newGrowWorking": {"de": "Setze neuen Grow…", "en": "Setting new grow…"},
+    "runsetting.newGrowConfirm": {"de": "Neuen Grow starten?\n\n• Startdatum = heute\n• Blüte/Trocknung wird geleert\n• Energieanzeige wird zurückgesetzt", "en": "Start a new grow?\n\n• Start date = today\n• Flowering/Drying cleared\n• Energy display reset"},
+    "runsetting.newGrowBtn": {"de": "Neuer Grow", "en": "New grow"},
   "runsetting.startGrow": { de: "Startdatum:", en: "Start Date:" },
   "runsetting.startFlower": { de: "Startdatum Blüte:", en: "Start Flowering Date:" },
   "runsetting.startDry": { de: "Startdatum Trocknung:", en: "Start Drying Date:" },
@@ -481,7 +487,9 @@ window.toggleShellyRelay = async function(device) {
     ? '/shelly/heater/toggle'
     : (device === 'humidifier')
       ? '/shelly/humidifier/toggle'
-      : null;
+      : (device === 'light')
+        ? '/shelly/light/toggle'
+        : null;
 
   if (!url) {
     console.error('[SHELLY][JS] Unknown device:', device);
@@ -831,7 +839,39 @@ window.addEventListener('DOMContentLoaded', () => {
     const initial   = urlLang || savedLang || (manifest.default || 'de');
     buildLanguageSelect(initial);
     setLanguage(initial);
-  })();
+  
+
+async function startNewGrow(){
+  const msgObj = (typeof I18N_RAW==='object' && I18N_RAW) ? I18N_RAW['runsetting.newGrowConfirm'] : null;
+  const msg = (msgObj && (msgObj[currentLang] || msgObj['de'] || msgObj['en'])) ||
+              'Neuer Grow starten? (setzt Startdatum auf heute, löscht Blüte/Trocknung, setzt Energie zurück)';
+  if (!confirm(msg)) return;
+
+  try{
+    showStatusHint((I18N_RAW['runsetting.newGrowWorking']?.[currentLang] || I18N_RAW['runsetting.newGrowWorking']?.de || 'Setze neuen Grow...'), {durationMs: 8000});
+    const r = await fetch('/api/newgrow', { method:'POST' });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    if(!d.ok) throw new Error('API');
+    // Update UI fields immediately
+    const gs = document.getElementById('webGrowStart'); if(gs) gs.value = d.startDate || '';
+    const fs = document.getElementById('webFloweringStart'); if(fs) fs.value = '';
+    const ds = document.getElementById('webDryingStart'); if(ds) ds.value = '';
+    const ps = document.getElementById('phaseSelect');
+    if(ps){ ps.value = '1'; ps.dispatchEvent(new Event('change')); }
+
+    showStatusHint((I18N_RAW['runsetting.newGrowDone']?.[currentLang] || I18N_RAW['runsetting.newGrowDone']?.de || 'Neuer Grow gesetzt.'), {durationMs: 6000});
+  }catch(e){
+    console.warn(e);
+    showStatusHint((I18N_RAW['runsetting.newGrowError']?.[currentLang] || I18N_RAW['runsetting.newGrowError']?.de || 'Fehler beim Setzen des neuen Grows.'), {durationMs: 9000});
+  }
+}
+
+
+
+  // expose for onclick handlers
+  window.startNewGrow = startNewGrow;
+})();
 
   // ---------- i18n validation ----------
   function validateI18n(){
@@ -1016,6 +1056,38 @@ if (!statusActive) return;
         }
         fanStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
         fanStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+      }
+
+
+      // ---------- Grow Light ----------
+      const lightStateEl = document.getElementById('shelly-light-state');
+      if (lightStateEl) {
+        // support both flat fields and nested shelly.light.values
+        const v = (data && data.shelly && data.shelly.light && data.shelly.light.values) ? data.shelly.light.values : null;
+
+        const rawStatus = (typeof data.shellyLightStatus !== 'undefined') ? data.shellyLightStatus : (v ? v.status : undefined);
+        const rawPower  = (typeof data.shellyLightPower  !== 'undefined') ? data.shellyLightPower  : (v ? v.power  : undefined);
+        const rawTotalWh= (typeof data.shellyLightTotalWh!== 'undefined') ? data.shellyLightTotalWh: (v ? v.totalWh: undefined);
+
+        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
+        const powerW = (typeof rawPower === 'number') ? rawPower : (Number(rawPower) || 0);
+        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : (Number(rawTotalWh) || 0);
+        const totalKWh = totalWh / 1000;
+
+        setShellyStateClass(lightStateEl, isOn);
+
+        if (!lightStateEl._pwr) {
+          lightStateEl.textContent = '';
+          const p = document.createElement('div');
+          const s = document.createElement('div');
+          s.className = 'sub';
+          lightStateEl.appendChild(p);
+          lightStateEl.appendChild(s);
+          lightStateEl._pwr = p;
+          lightStateEl._sum = s;
+        }
+        lightStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
+        lightStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
       }
 
       // ---------- Averages ----------

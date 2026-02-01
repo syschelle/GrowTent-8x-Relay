@@ -313,6 +313,12 @@ const char* htmlPage = R"rawliteral(
         <div class="info">%SHELLYMAINIP%</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('mainSw')">Toggle</button>
       </div>
+      <div class="relay-card" data-relay="shellyLight">
+        <div class="relay-title" data-i18n="status.shellyLight">Grow Licht</div>
+        <div id="shelly-light-switch-state" class="shelly-status shelly-off"></div>
+        <div class="info">%SHELLYLIGHTIP%</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('light')">Toggle</button>
+      </div>
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
         <div id="shelly-heater-state" class="shelly-status shelly-off"></div>
@@ -397,6 +403,18 @@ const char* htmlPage = R"rawliteral(
             <option value="1" %SHMAINSWKIND1%>Gen1</option>
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
             <option value="3" %SHMAINSWKIND3%>Gen3</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyIPLight">Shelly IP Adresse für Pflanzlicht:</label>
+        <div class="twoinone-label">
+          <input name="webShellyLightIP" id="shellyLightIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%">
+          <select name="webShellyLightGen" id="shellyLightGen" class="control-sm control-xs">
+            <option value="1" %SHLIGHTKIND1%>Gen1</option>
+            <option value="2" %SHLIGHTKIND2%>Gen2</option>
+            <option value="3" %SHLIGHTKIND3%>Gen3</option>
           </select>
         </div>
       </div>

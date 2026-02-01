@@ -55,6 +55,8 @@ const char* KEY_RELAY_END_8   = "relay_end_8";
 // Shelly device keys
 const char* KEY_SHELLYMAINIP = "shMainIP";
 const char* KEY_SHELLYMAINGEN = "shMainGen";
+const char* KEY_SHELLYLIGHTIP = "shLightIP";
+const char* KEY_SHELLYLIGHTGEN = "shLightGen";
 const char* KEY_SHELLYHEATIP = "shHeatIP";
 const char* KEY_SHELLYHEATGEN = "shHeatGen";
 const char* KEY_SHELLYHUMIP = "shHumIP";
@@ -63,6 +65,11 @@ const char* KEY_SHELLYFANIP = "shFanIP";
 const char* KEY_SHELLYFANGEN = "shFanGen";
 const char* KEY_SHELLYUSERNAME = "shUser";
 const char* KEY_SHELLYPASSWORD = "shPass";
+const char* KEY_SHELLYMAINOFF = "shMainOff";
+const char* KEY_SHELLYLIGHTOFF = "shLightOff";
+const char* KEY_SHELLYHEATOFF = "shHeatOff";
+const char* KEY_SHELLYHUMOFF  = "shHumOff";
+const char* KEY_SHELLYFANOFF  = "shFanOff";
 
 // UI/settings keys
 const char* KEY_NAME   = "boxName";

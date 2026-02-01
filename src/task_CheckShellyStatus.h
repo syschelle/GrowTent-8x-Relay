@@ -32,6 +32,7 @@ void taskShellyStatus(void *parameter){
     }
 
     shelly.main.values = getShellyValues(settings.shelly.main, 0);
+    shelly.light.values = getShellyValues(settings.shelly.light, 0);
     shelly.heat.values = getShellyValues(settings.shelly.heat, 0);
     shelly.hum.values = getShellyValues(settings.shelly.hum, 0);
     shelly.fan.values = getShellyValues(settings.shelly.fan, 0);

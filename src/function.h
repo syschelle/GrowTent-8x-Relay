@@ -21,6 +21,13 @@
 // Include platform-specific headers for inet_ntoa
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
 #include <lwip/inet.h>
+
+// Forward declarations (used before definitions)
+struct ShellyDevice;
+struct ShellyValues;
+ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80);
+static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId, uint16_t port);
+
 #endif
 
 
@@ -329,6 +336,80 @@ void handleSaveRunsettings() {
 }
 
 // Handle Shelly settings save
+
+void handleNewGrow() {
+  if (!preferences.begin(PREF_NS, false)) {
+    logPrint("[PREF][ERROR] preferences.begin() failed (newGrow)");
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"error\":\"prefs\"}");
+    return;
+  }
+
+  // Today in local time: YYYY-MM-DD
+  char dateBuf[11] = {0};
+  time_t now = time(nullptr);
+  struct tm tmNow {};
+  localtime_r(&now, &tmNow);
+  snprintf(dateBuf, sizeof(dateBuf), "%04d-%02d-%02d",
+           tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday);
+  const String today(dateBuf);
+
+  // Reset grow dates/phases
+  startDate = today;
+  startFlowering = "";
+  startDrying = "";
+  curPhase = 1; // Vegetativ
+
+  preferences.putString(KEY_STARTDATE, startDate);
+  preferences.putString(KEY_FLOWERDATE, startFlowering);
+  preferences.putString(KEY_DRYINGDATE, startDrying);
+  preferences.putInt(KEY_CURRENTPHASE, curPhase);
+
+  // Reset energy display: store current totals as offset (so UI shows 0)
+  // Then try to reset device counters (Gen2), if successful -> offset can be 0.
+  auto resetOne = [&](ShellyDevice &d, const char* keyOff) -> bool {
+    if (d.ip.length() == 0) return false;
+
+    // read current raw total (offset currently applied inside getShellyValues, so temporarily disable)
+    const float prevOff = d.energyOffsetWh;
+    d.energyOffsetWh = 0.0f;
+    ShellyValues v = getShellyValues(d, 0, 80);
+    float rawWh = (!isnan(v.energyWh) ? v.energyWh : 0.0f);
+
+    // baseline offset to show 0
+    d.energyOffsetWh = rawWh;
+    preferences.putFloat(keyOff, d.energyOffsetWh);
+
+    // try to reset counters on device; if succeeds -> keep offset 0
+    bool resetOk = shellyResetEnergyCounters(d, 0, 80);
+    if (resetOk) {
+      d.energyOffsetWh = 0.0f;
+      preferences.putFloat(keyOff, 0.0f);
+    }
+
+    // refresh values
+    return resetOk;
+  };
+
+  bool okMain = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
+  bool okLight= resetOne(settings.shelly.light,KEY_SHELLYLIGHTOFF);
+  bool okHeat = resetOne(settings.shelly.heat, KEY_SHELLYHEATOFF);
+  bool okHum  = resetOne(settings.shelly.hum,  KEY_SHELLYHUMOFF);
+  bool okFan  = resetOne(settings.shelly.fan,  KEY_SHELLYFANOFF);
+  // Response
+  String resp = "{";
+  resp += "\"ok\":true,";
+  resp += "\"startDate\":\"" + startDate + "\",";
+  resp += "\"reset\":{";
+  resp += "\"main\":" + String(okMain ? "true" : "false") + ",";
+  resp += "\"light\":" + String(okLight ? "true" : "false") + ",";
+  resp += "\"heat\":" + String(okHeat ? "true" : "false") + ",";
+  resp += "\"hum\":"  + String(okHum  ? "true" : "false") + ",";
+  resp += "\"fan\":"  + String(okFan  ? "true" : "false");
+  resp += "}}";
+
+  server.send(200, "application/json; charset=utf-8", resp);
+}
+
 void handleSaveShellySettings() {
 
   if (!preferences.begin(PREF_NS, false)) {
@@ -354,6 +435,11 @@ void handleSaveShellySettings() {
   normalizeIPv4(settings.shelly.main.ip);
   savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   settings.shelly.main.ip,   "Main IP");
   savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  settings.shelly.main.gen,  "Main Gen");
+
+  // --- LIGHT ---
+  normalizeIPv4(settings.shelly.light.ip);
+  savePrefString("webShellyLightIP",   KEY_SHELLYLIGHTIP,   settings.shelly.light.ip,   "Light IP");
+  savePrefInt   ("webShellyLightGen",  KEY_SHELLYLIGHTGEN,  settings.shelly.light.gen,  "Light Gen");
 
   // --- HEATER ---
   normalizeIPv4(settings.shelly.heat.ip);
@@ -1460,7 +1546,7 @@ static bool httpGetGen1(
 // =======================
 // MAIN: GET VALUES
 // =======================
-ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
+ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   ShellyValues v; // default ok=false
 
   // IP prüfen
@@ -1516,6 +1602,46 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
   v.ok = true;
   dev.values = v;
   return v;
+}
+
+
+// =======================
+// Reset Shelly energy counters (best-effort).
+// Gen2: Switch.ResetCounters / PM1.ResetCounters
+// Gen1: there is no universal reset for Plug/1PM; we keep a local offset instead.
+// =======================
+static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId = 0, uint16_t port = 80) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  int code = 0;
+  String body;
+
+  auto callGen2 = [&](const String& path) -> bool {
+    bool ok = httpGetWithDigestAutoAuth(dev.ip, port, path,
+                                       settings.shelly.username, settings.shelly.password,
+                                       code, body);
+    return ok && code == 200;
+  };
+
+  auto callGen1 = [&](const String& path) -> bool {
+    bool ok = httpGetGen1(dev.ip, port, path,
+                         settings.shelly.username, settings.shelly.password,
+                         code, body);
+    return ok && code == 200;
+  };
+
+  if (dev.gen >= 2) {
+    // Try Switch.ResetCounters first (works on many Plus/Pro switch devices)
+    if (callGen2("/rpc/Switch.ResetCounters?id=" + String(switchId))) return true;
+    // Some devices expose metering via PM1 component
+    if (callGen2("/rpc/PM1.ResetCounters?id=" + String(switchId))) return true;
+    return false;
+  }
+
+  // Gen1 best-effort for EM/3EM style devices (if present)
+  // (Plug/1PM typically has no supported reset endpoint; offset will handle display reset)
+  if (callGen1("/reset_data")) return true;
+  return false;
 }
 
 // =======================

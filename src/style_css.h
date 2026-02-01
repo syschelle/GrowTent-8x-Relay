@@ -142,7 +142,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
       background: var(--header);
       color: #fff;
       cursor: pointer;
-      transition: all 0.25s ease;          /* sanfter Übergang */
+      transition: all 0.25s ease;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
 
@@ -534,10 +534,19 @@ const char cssContent[] PROGMEM = R"rawliteral(
       align-items: center;
     }
     .btn.danger{
-      border-color: rgba(200,60,60,0.55);
+      padding: 10px;
+      border: 0;
+      border-radius: var(--radius);
+      background: var(--header);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     .btn.danger:hover{
-      border-color: rgba(200,60,60,0.85);
+      transform: translateY(-2px);         /* leichter „Lift“-Effekt */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      filter: brightness(1.05);            /* etwas heller */
     }
 
 /* -------------------- Grow Diary -------------------- */

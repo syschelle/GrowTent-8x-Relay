@@ -31,12 +31,14 @@ struct ShellyValues {
 struct ShellyDevice {
   String ip;
   int    gen  = 0;
+  float  energyOffsetWh = 0.0f; // baseline to show 0 at "new grow"
   ShellyValues values;
 };
 
 // Shelly overall settings
 struct ShellySettings {
   ShellyDevice main;
+  ShellyDevice light;
   ShellyDevice heat;
   ShellyDevice hum;
   ShellyDevice fan;
@@ -48,8 +50,9 @@ struct ShellySettings {
 // Relay schedule
 struct RelaySchedule {
   bool enabled = false;
-  int start = 0; // so wie du es bisher nutzt
+  int start = 0;
   int end   = 0;
+  bool lightOn = false;
 };
 
 // Relay settings
@@ -201,6 +204,8 @@ extern const char* KEY_RELAY_END_8;
 // Shelly device keys
 extern const char* KEY_SHELLYMAINIP;
 extern const char* KEY_SHELLYMAINGEN;
+extern const char* KEY_SHELLYLIGHTIP;
+extern const char* KEY_SHELLYLIGHTGEN;
 extern const char* KEY_SHELLYHEATIP;
 extern const char* KEY_SHELLYHEATGEN;
 extern const char* KEY_SHELLYHUMIP;
@@ -209,6 +214,12 @@ extern const char* KEY_SHELLYFANIP;
 extern const char* KEY_SHELLYFANGEN;
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYPASSWORD;
+extern const char* KEY_SHELLYMAINOFF;
+extern const char* KEY_SHELLYLIGHTOFF;
+extern const char* KEY_SHELLYHEATOFF;
+extern const char* KEY_SHELLYHUMOFF;
+extern const char* KEY_SHELLYFANOFF;
+
 
 // UI/settings keys
 extern const char* KEY_NAME;
