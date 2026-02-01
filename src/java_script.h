@@ -145,6 +145,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
     en: "Offset leaf temperature"
   },
   "runsetting.targetVPD": { de: "Soll-VPD", en: "Target VPD" },
+  "runsetting.lightOnTime": { de: "Einschaltzeit Pflanzlicht:", en: "Grow light on time:" },
+  "runsetting.lightDayHours": { de: "Tagzeit (Stunden):", en: "Daytime (hours):" },
+  "runsetting.lightRatio": { de: "Verhältnis Tag/Nacht: {day}/{night}", en: "Day/Night ratio: {day}/{night}" },
+
 
   "runsetting.wateringSettings": {
     de: "Bewässerungseinstellung",
@@ -803,6 +807,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(tf){ const saved=localStorage.getItem('timeFormat')||getDefaultTimeFormatFor(currentLang); if(tf.value!==saved) tf.value=saved; }
     const tu=$('tempUnit'); if(tu){ const savedTU=getTempUnit(); if(tu.value!==savedTU) tu.value=savedTU; }
     renderHeaderDateTime();
+    window.updateLightRatio?.();
   }
   function setLanguage(code){
     try { I18N_RAW = readJsonTag('i18n'); }
@@ -1060,7 +1065,7 @@ if (!statusActive) return;
 
 
       // ---------- Grow Light ----------
-      const lightStateEl = (document.getElementById('shelly-light-switch-state') || document.getElementById('shelly-light-state'));
+      const lightStateEl = document.getElementById('shelly-light-state');
       if (lightStateEl) {
         // support both flat fields and nested shelly.light.values
         const v = (data && data.shelly && data.shelly.light && data.shelly.light.values) ? data.shelly.light.values : null;
@@ -1978,6 +1983,32 @@ document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
   document.getElementById('varsRefreshBtn')?.addEventListener('click', loadVars);
   document.getElementById('varsSearch')?.addEventListener('input', (e) => renderVars(_lastStateObj, e.target.value));
 
+
+
+  // ---------- Growlight schedule UI ----------
+  (function initGrowLightUI(){
+    const sel = document.getElementById('webLightDayHours');
+    const ratioEl = document.getElementById('lightRatioSpan');
+    if (!sel || !ratioEl) return;
+
+    // apply saved value that was injected as data-selected
+    const saved = sel.getAttribute('data-selected');
+    if (saved && String(saved).trim()) sel.value = String(saved).trim();
+
+    function updateLightRatio(){
+      const day = Math.max(0, Math.min(24, Number(sel.value) || 0));
+      const night = day ? (24 - day) : 0;
+      const key = 'runsetting.lightRatio';
+      const tpl = (typeof I18N === 'object' && I18N && I18N[key]) ? I18N[key] : 'Verhältnis Tag/Nacht: {day}/{night}';
+      ratioEl.textContent = String(tpl).replace(/\{day\}/g, String(day)).replace(/\{night\}/g, String(night));
+    }
+
+    // expose for translation refresh
+    window.updateLightRatio = updateLightRatio;
+
+    sel.addEventListener('change', updateLightRatio);
+    updateLightRatio();
+  })();
   // Initial call to set the correct page on load
   const initiallyActive = document.querySelector('.page.active')?.id || 'status';
   onPageChanged(initiallyActive);

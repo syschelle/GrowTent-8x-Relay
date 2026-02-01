@@ -72,6 +72,9 @@ struct GrowGroup {
   float offsetLeafTemperature = -1.5f;
   float targetVPD = 1.0f;
 
+  String lightOnTime = "06:00";   // HH:MM
+  int lightDayHours = 18;          // 1..20
+
   int amountOfWater = 20;
   int irrigation = 500;
   int timePerTask = 10;
@@ -176,6 +179,8 @@ extern const char* KEY_CURRENTPHASE;
 extern const char* KEY_TARGETTEMP;
 extern const char* KEY_LEAFTEMP;
 extern const char* KEY_TARGETVPD;
+extern const char* KEY_LIGHT_ON_TIME;
+extern const char* KEY_LIGHT_DAY_HOURS;
 extern const char* KEY_TIMEPERTASK;
 extern const char* KEY_BETWEENTASKS;
 extern const char* KEY_AMOUNTOFWATER;
@@ -271,6 +276,8 @@ extern int curPhase;
 extern float targetTemperature;
 extern float offsetLeafTemperature;
 extern float targetVPD;
+extern String lightOnTime;
+extern int lightDayHours;
 extern int amountOfWater;
 extern int irrigation;
 extern int irrigationRuns;

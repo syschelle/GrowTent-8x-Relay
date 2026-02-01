@@ -319,6 +319,8 @@ void handleSaveRunsettings() {
   savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, "Target Temperature");
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, "Target VPD");
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, "Leaf Temperature Offset");
+  savePrefString("webLightOnTime", KEY_LIGHT_ON_TIME, lightOnTime, "Grow Light On Time");
+  savePrefInt("webLightDayHours", KEY_LIGHT_DAY_HOURS, lightDayHours, "Grow Light Day Hours");
   savePrefInt("webTimePerTask", KEY_TIMEPERTASK, timePerTask, "Time Per Task");
   savePrefInt("webBetweenTasks", KEY_BETWEENTASKS, betweenTasks, "Pause Between Tasks");
   savePrefInt("webAmountOfWater", KEY_AMOUNTOFWATER, amountOfWater, "Amount Of Water");
@@ -459,6 +461,10 @@ void handleSaveShellySettings() {
   savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, "Pass");
 
   preferences.end();
+
+  settings.grow.lightOnTime = lightOnTime;
+  settings.grow.lightDayHours = lightDayHours;
+  applyGrowLightSchedule();
 
   server.sendHeader("Location", "/");
   server.send(303);
@@ -1455,6 +1461,110 @@ static bool rawHttpGet(const String& host, uint16_t port, const String& path,
   return true;
 }
 
+
+
+// Low-level HTTP request using WiFiClient, with optional Authorization header line.
+static bool rawHttpRequest(const String& method,
+                           const String& host, uint16_t port,
+                           const String& path,
+                           const String& authHeaderLine,
+                           const String& contentType,
+                           const String& body,
+                           int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  WiFiClient client;
+  client.setTimeout(6); // seconds
+
+  if (!client.connect(host.c_str(), port)) {
+    return false;
+  }
+
+  String p = path;
+  if (!p.startsWith("/")) p = "/" + p;
+
+  String req = method + " " + p + " HTTP/1.0\r\n"
+               "Host: " + host + "\r\n" +
+               authHeaderLine;
+
+  if (method == "POST" || method == "PUT" || method == "PATCH") {
+    const String ct = contentType.length() ? contentType : String("application/json");
+    req += "Content-Type: " + ct + "\r\n";
+    req += "Content-Length: " + String(body.length()) + "\r\n";
+  }
+
+  req += "Connection: close\r\n\r\n";
+
+  client.print(req);
+  if (method == "POST" || method == "PUT" || method == "PATCH") {
+    client.print(body);
+  }
+
+  String raw;
+  bool ok = readAllFromClient(client, raw);
+  client.stop();
+  if (!ok) return false;
+
+  parseHttpResponse(raw, outCode, outBody);
+  return true;
+}
+
+// Auto-auth request (GET/POST): first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
+static bool httpRequestWithDigestAutoAuth(const String& method,
+                                          const String& host, uint16_t port,
+                                          const String& path,
+                                          const String& user, const String& pass,
+                                          const String& contentType,
+                                          const String& body,
+                                          int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  // First request without auth to retrieve challenge
+  int code0 = -1;
+  String body0;
+
+  // For the first call we don't send a body. Most devices respond 401 and include WWW-Authenticate.
+  rawHttpRequest(method, host, port, path, "", contentType, (method=="GET"?String(""):body), code0, body0);
+
+  // BASIC (some firmware uses basic auth)
+  if (body0.indexOf("WWW-Authenticate: Basic") >= 0 || body0.indexOf("WWW-Authenticate: basic") >= 0) {
+    String basic = base64::encode(user + ":" + pass);
+    String authLine = "Authorization: Basic " + basic + "\r\n";
+    return rawHttpRequest(method, host, port, path, authLine, contentType, body, outCode, outBody);
+  }
+
+  // Digest
+  String www = extractWwwAuthenticate(body0);
+  if (www.length() == 0) {
+    // No auth required?
+    outCode = code0;
+    outBody = body0;
+    return true;
+  }
+
+  DigestParams dp;
+  if (!parseDigestParams(www, dp)) {
+    outCode = code0;
+    outBody = body0;
+    return true;
+  }
+
+  // nc/cnonce
+  static uint32_t _nc = 1;
+  String nc = String(_nc++, HEX);
+  while (nc.length() < 8) nc = "0" + nc;
+  String cnonce = String((uint32_t)esp_random(), HEX);
+
+  String uri = path;
+  if (!uri.startsWith("/")) uri = "/" + uri;
+
+  String authHeader = buildDigestAuthHeader(user, pass, method, uri, dp, nc, cnonce);
+  String authLine = "Authorization: " + authHeader + "\r\n";
+
+  return rawHttpRequest(method, host, port, path, authLine, contentType, body, outCode, outBody);
+}
 // Auto-auth GET: first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
 static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const String& path,
                                       const String& user, const String& pass,
@@ -1676,4 +1786,113 @@ static bool shellySwitchOn(const String& host, uint8_t gen, uint8_t switchId = 0
 
 static bool shellySwitchOff(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
   return shellySwitchSet(host, gen, false, switchId, port);
+}
+
+// --- GrowLight schedule support -------------------------------------------------
+// Encodes query string parts (for Gen1 schedule_rules)
+static String _urlEncodeQS(const String& s){
+  String o; o.reserve(s.length()*3);
+  const char* hex = "0123456789ABCDEF";
+  for (size_t i=0; i<s.length(); i++) {
+    const uint8_t c = (uint8_t)s[i];
+    const bool ok = (c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='-' || c=='_' || c=='.' || c=='~';
+    if (ok) {
+      o += (char)c;
+    } else {
+      o += '%';
+      o += hex[(c >> 4) & 0xF];
+      o += hex[c & 0xF];
+    }
+  }
+  return o;
+}
+
+static bool _parseHHMM(const String& hhmm, int& h, int& m){
+  if (hhmm.length() < 4) return false;
+  int colon = hhmm.indexOf(':');
+  if (colon > 0) {
+    h = hhmm.substring(0, colon).toInt();
+    m = hhmm.substring(colon + 1).toInt();
+  } else {
+    h = hhmm.substring(0, 2).toInt();
+    m = hhmm.substring(2, 4).toInt();
+  }
+  if (h < 0 || h > 23 || m < 0 || m > 59) return false;
+  return true;
+}
+
+static String _fmtHHMM(int h, int m){
+  char b[6];
+  snprintf(b, sizeof(b), "%02d:%02d", h, m);
+  return String(b);
+}
+
+static String _fmtRuleTime4(int h, int m){
+  char b[5];
+  snprintf(b, sizeof(b), "%02d%02d", h, m);
+  return String(b);
+}
+
+// Applies a daily ON/OFF schedule directly to the Shelly (so it can run autonomously).
+// Gen1: /settings/relay/0?schedule=true&schedule_rules=....
+// Gen2+: /rpc/Schedule.DeleteAll + /rpc/Schedule.Create (2 jobs)
+static bool applyShellyLightSchedule(const String& onTimeHHMM, int dayHours){
+  const String ip = settings.shelly.light.ip;
+  if (!ip.length()) {
+    Serial.println("[SHELLY][LIGHT][SCHEDULE] No IP configured");
+    return false;
+  }
+
+  int h = 0, mi = 0;
+  if (!_parseHHMM(onTimeHHMM, h, mi)) {
+    Serial.println("[SHELLY][LIGHT][SCHEDULE] Invalid onTime");
+    return false;
+  }
+
+  int dh = dayHours;
+  if (dh < 1) dh = 1;
+  if (dh > 20) dh = 20;
+
+  const int offH = (h + dh) % 24;
+  const int offM = mi;
+  const String offTime = _fmtHHMM(offH, offM);
+
+  const uint8_t gen = settings.shelly.light.gen ? settings.shelly.light.gen : 1;
+  const String user = settings.shelly.username;
+  const String pass = settings.shelly.password;
+
+  int status = 0;
+  String body;
+
+  if (gen <= 1) {
+    const String on4  = _fmtRuleTime4(h, mi);
+    const String off4 = _fmtRuleTime4(offH, offM);
+    const String rules = on4 + "-0123456-on," + off4 + "-0123456-off";
+    const String path = String("/settings/relay/0?schedule=true&schedule_rules=") + _urlEncodeQS(rules);
+
+    const bool ok = httpGetWithDigestAutoAuth(ip, 80, path, user, pass, status, body);
+    Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen1 set rules=%s status=%d ok=%d\n", rules.c_str(), status, (int)ok);
+    return ok && (status >= 200 && status < 300);
+  }
+
+  // Gen2+: clear + create two schedule jobs
+  const bool okDel = httpPostWithDigestAutoAuth(ip, 80, "/rpc/Schedule.DeleteAll", "{}", user, pass, status, body);
+  Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen2 DeleteAll status=%d ok=%d\n", status, (int)okDel);
+
+  auto mkCreate = [&](bool turnOn, const String& t)->String {
+    const String timespec = t + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
+    const String payload = String("{\"enable\":true,\"timespec\":\"") + timespec + "\",\"calls\":[{\"method\":\"Switch.Set\",\"params\":{\"id\":0,\"on\":" + (turnOn ? "true" : "false") + "}}]}";
+    return payload;
+  };
+
+  const String createOn  = mkCreate(true, onTimeHHMM);
+  const String createOff = mkCreate(false, offTime);
+
+  const bool ok1 = httpPostWithDigestAutoAuth(ip, 80, "/rpc/Schedule.Create", createOn, user, pass, status, body);
+  Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen2 Create ON %s status=%d ok=%d\n", onTimeHHMM.c_str(), status, (int)ok1);
+
+  const bool ok2 = httpPostWithDigestAutoAuth(ip, 80, "/rpc/Schedule.Create", createOff, user, pass, status, body);
+  Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen2 Create OFF %s status=%d ok=%d\n", offTime.c_str(), status, (int)ok2);
+
+  return okDel && ok1 && ok2;
 }

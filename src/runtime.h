@@ -131,6 +131,8 @@ void handleRoot() {
 
     // Replace placeholders in index_html.h
     html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
+    html.replace("%LIGHTONTIME%", lightOnTime);
+    html.replace("%LIGHTDAYHOURS%", String(lightDayHours));
     html.replace("%WATERTEMPERATURE%", String(DS18B20STemperature, 1));
     html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
@@ -310,6 +312,10 @@ void readPreferences() {
   loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
+  loadPrefString(KEY_LIGHT_ON_TIME, lightOnTime, "06:00", true, "lightOnTime");
+  loadPrefInt(KEY_LIGHT_DAY_HOURS, lightDayHours, 18, true, "lightDayHours");
+  settings.grow.lightOnTime = lightOnTime;
+  settings.grow.lightDayHours = lightDayHours;
   loadPrefInt(KEY_AMOUNTOFWATER, amountOfWater, 20, true, "amountOfWater");
   loadPrefInt(KEY_IRRIGATION, irrigation, 500, true, "irrigation");
   loadPrefInt(KEY_TIMEPERTASK, timePerTask, 10, true, "timePerTask");
