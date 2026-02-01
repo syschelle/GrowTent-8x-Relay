@@ -214,6 +214,298 @@ static String csvEscape(const String& in) {
   return "\"" + s + "\"";
 }
 
+// CSV: split a line into fields (supports quotes and commas inside quoted fields)
+static bool csvSplitLine(const String& line, String* out, int outMax, int& outCount) {
+  outCount = 0;
+  bool inQuotes = false;
+  String cur;
+  cur.reserve(line.length());
+
+  for (size_t i = 0; i < (size_t)line.length(); i++) {
+    const char c = line[i];
+    if (c == '"') {
+      // doubled quote inside quoted field -> literal quote
+      if (inQuotes && (i + 1 < (size_t)line.length()) && line[i + 1] == '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (c == ',' && !inQuotes) {
+      if (outCount < outMax) out[outCount] = cur;
+      outCount++;
+      cur = "";
+      continue;
+    }
+    cur += c;
+  }
+
+  if (outCount < outMax) out[outCount] = cur;
+  outCount++;
+  return outCount > 0;
+}
+
+// CSV: remove surrounding quotes already handled by csvSplitLine; trim and keep as-is
+
+// ---- Grow Diary storage helpers ----
+// We store each diary row with a stable numeric id in column 0.
+// New schema (8 fields):
+//   id, tsLocal, phase, growDay, growWeek, phaseDay, phaseWeek, note
+// Old schema (7 fields) without id is migrated on first access.
+
+static uint32_t fnv1a32(const String& s) {
+  uint32_t h = 2166136261u;
+  for (size_t i = 0; i < (size_t)s.length(); i++) {
+    h ^= (uint8_t)s[i];
+    h *= 16777619u;
+  }
+  return h;
+}
+
+static bool ensureDiaryHasId() {
+  if (!LittleFS.begin(true)) return false;
+  if (!LittleFS.exists(DIARY_PATH)) return true;
+
+  File f = LittleFS.open(DIARY_PATH, FILE_READ);
+  if (!f) return false;
+
+  String first = f.readStringUntil('\n');
+  first.trim();
+  f.close();
+
+  // Quick check: if first field looks like a numeric id and there are 8 fields, we're done.
+  String fields[12]; int n = 0;
+  int cnt = 0;
+  if (!csvSplitLine(first, fields, 12, cnt)) return true; // empty file is fine
+
+  if (cnt >= 8) {
+    const String id0 = csvFieldToString(fields[0]);
+    bool allDigits = id0.length() > 0;
+    for (size_t i = 0; i < (size_t)id0.length(); i++) {
+      if (id0[i] < '0' || id0[i] > '9') { allDigits = false; break; }
+    }
+    if (allDigits) return true;
+  }
+
+  // Migrate old 7-field rows -> prepend id
+  File in = LittleFS.open(DIARY_PATH, FILE_READ);
+  if (!in) return false;
+
+  const char* TMP = "/growdiary.tmp";
+  if (LittleFS.exists(TMP)) LittleFS.remove(TMP);
+  File out = LittleFS.open(TMP, FILE_WRITE);
+  if (!out) { in.close(); return false; }
+
+  uint32_t lineNo = 0;
+  while (in.available()) {
+    String line = in.readStringUntil('\n');
+    line.trim();
+    if (!line.length()) continue;
+
+    String flds[12]; int c = 0;
+    if (!csvSplitLine(line, flds, 12, c) || c < 7) continue;
+
+    const String tsLocal = csvFieldToString(flds[0]);
+    const String phase   = csvFieldToString(flds[1]);
+    const String note    = csvFieldToString(flds[6]);
+
+    uint32_t id = fnv1a32(tsLocal + "|" + phase + "|" + note + "|" + String(lineNo++));
+    String row;
+    row.reserve(line.length() + 16);
+    row += String(id);
+    row += ",";
+    row += line; // rest of old row
+    out.println(row);
+  }
+  in.close();
+  out.close();
+
+  // Replace old file
+  LittleFS.remove(DIARY_PATH);
+  return LittleFS.rename(TMP, DIARY_PATH);
+}
+
+static bool rewriteDiaryWithMutation(const String& idStr, bool doDelete, const String& newPhase, const String& newNote) {
+  if (!ensureDiaryHasId()) return false;
+  if (!LittleFS.exists(DIARY_PATH)) return false;
+
+  File in = LittleFS.open(DIARY_PATH, FILE_READ);
+  if (!in) return false;
+
+  const char* TMP = "/growdiary.tmp";
+  if (LittleFS.exists(TMP)) LittleFS.remove(TMP);
+  File out = LittleFS.open(TMP, FILE_WRITE);
+  if (!out) { in.close(); return false; }
+
+  bool changed = false;
+  while (in.available()) {
+    String line = in.readStringUntil('\n');
+    line.trim();
+    if (!line.length()) continue;
+
+    String flds[12]; int c = 0;
+    if (!csvSplitLine(line, flds, 12, c) || c < 8) {
+      out.println(line);
+      continue;
+    }
+
+    const String rid = csvFieldToString(flds[0]);
+    if (rid != idStr) {
+      out.println(line);
+      continue;
+    }
+
+    // matched id
+    if (doDelete) {
+      changed = true;
+      continue; // skip line
+    }
+
+    // Update: keep all columns except phase (col 2) and note (col 7)
+    // Schema: 0 id, 1 tsLocal, 2 phase, 3 growDay, 4 growWeek, 5 phaseDay, 6 phaseWeek, 7 note
+    String row;
+    row.reserve(line.length() + 16);
+    row += rid; row += ",";
+    row += csvEscape(csvFieldToString(flds[1])); row += ","; // tsLocal (re-escaped to normalize)
+    row += csvEscape(newPhase.length() ? newPhase : csvFieldToString(flds[2])); row += ",";
+    row += csvFieldToString(flds[3]); row += ",";
+    row += csvFieldToString(flds[4]); row += ",";
+    row += csvFieldToString(flds[5]); row += ",";
+    row += csvFieldToString(flds[6]); row += ",";
+    row += csvEscape(newNote.length() ? newNote : csvFieldToString(flds[7]));
+    out.println(row);
+    changed = true;
+  }
+
+  in.close();
+  out.close();
+
+  if (!changed) {
+    LittleFS.remove(TMP);
+    return false;
+  }
+
+  LittleFS.remove(DIARY_PATH);
+  return LittleFS.rename(TMP, DIARY_PATH);
+}
+
+static String csvFieldToString(const String& s) {
+  String t = s;
+  t.trim();
+  return t;
+}
+
+// Parse local timestamp "YYYY-MM-DD HH:MM:SS" -> unix seconds (local time). Returns 0 on failure.
+static time_t parseLocalTimestamp(const String& tsLocal) {
+  if (tsLocal.length() < 19) return 0;
+  const int y = tsLocal.substring(0, 4).toInt();
+  const int m = tsLocal.substring(5, 7).toInt();
+  const int d = tsLocal.substring(8, 10).toInt();
+  const int hh = tsLocal.substring(11, 13).toInt();
+  const int mm = tsLocal.substring(14, 16).toInt();
+  const int ss = tsLocal.substring(17, 19).toInt();
+  if (y < 1970 || m < 1 || m > 12 || d < 1 || d > 31) return 0;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59 || ss < 0 || ss > 59) return 0;
+
+  struct tm tmv {};
+  tmv.tm_year = y - 1900;
+  tmv.tm_mon  = m - 1;
+  tmv.tm_mday = d;
+  tmv.tm_hour = hh;
+  tmv.tm_min  = mm;
+  tmv.tm_sec  = ss;
+  tmv.tm_isdst = -1;
+  return mktime(&tmv);
+}
+
+// GET /api/diary/list  -> returns JSON list for UI
+static void handleDiaryList() {
+  server.sendHeader("Cache-Control", "no-store");
+  if (!LittleFS.begin(true) || !LittleFS.exists(DIARY_PATH)) {
+    server.send(200, "application/json; charset=utf-8", "{\"items\":[]}");
+    return;
+  }
+
+  ensureDiaryHasId();
+
+  File f = LittleFS.open(DIARY_PATH, FILE_READ);
+  if (!f) {
+    server.send(500, "application/json; charset=utf-8", "{\"items\":[],\"err\":\"open\"}");
+    return;
+  }
+
+  // We keep the last N entries to avoid large RAM usage
+  const int MAX_ITEMS = 50;
+  String items[MAX_ITEMS];
+  int count = 0;
+
+  bool firstLine = true;
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (!line.length()) continue;
+    if (firstLine) { firstLine = false; continue; } // skip header
+
+    // Parse fields
+    String fields[8];
+    int n = 0;
+    int outCount = 0;
+    csvSplitLine(line, fields, 8, outCount);
+    if (outCount < 7) continue; // malformed
+
+    const String diaryId = csvFieldToString(fields[0]);
+    const String tsLocal = csvFieldToString(fields[1]);
+    const String phase   = csvFieldToString(fields[2]);
+    const String note    = csvFieldToString(fields[7]);
+    const time_t ts = parseLocalTimestamp(tsLocal);
+
+    String preview = note;
+    preview.trim();
+    if (preview.length() > 90) preview = preview.substring(0, 90) + "…";
+
+    // Build JSON object string (escape quotes/backslashes minimally)
+    auto jEsc = [](const String& in) -> String {
+      String s = in;
+      s.replace("\\", "\\\\");
+      s.replace("\"", "\\\"");
+      s.replace("\r", " ");
+      s.replace("\n", " ");
+      return s;
+    };
+
+    String obj;
+    obj.reserve(256);
+    obj += "{\"id\":\"" + jEsc(diaryId) + "\"",\"date\":\"" + jEsc(tsLocal) + "\"";
+    if (ts > 0) obj += ",\"ts\":" + String((uint32_t)ts);
+    if (phase.length()) obj += ",\"phase\":\"" + jEsc(phase) + "\"";
+    if (note.length())  obj += ",\"note\":\""  + jEsc(note)  + "\"";
+    if (preview.length()) obj += ",\"preview\":\"" + jEsc(preview) + "\"";
+    obj += "}";
+
+    // ring buffer: keep last MAX_ITEMS lines
+    if (count < MAX_ITEMS) {
+      items[count++] = obj;
+    } else {
+      for (int i = 1; i < MAX_ITEMS; i++) items[i - 1] = items[i];
+      items[MAX_ITEMS - 1] = obj;
+    }
+  }
+  f.close();
+
+  String json;
+  json.reserve(2048);
+  json += "{\"items\":[";
+  for (int i = 0; i < count; i++) {
+    if (i) json += ',';
+    json += items[i];
+  }
+  json += "]}";
+
+  server.send(200, "application/json; charset=utf-8", json);
+}
+
 // POST /api/diary/add
 // Accepts either JSON body {"note":"...","phase":"grow|flower|dry"} or form fields note=...&phase=...
 static void handleDiaryAdd() {
@@ -278,6 +570,9 @@ static void handleDiaryAdd() {
     return;
   }
 
+  // Ensure schema (adds stable id column for edit/delete)
+  ensureDiaryHasId();
+
   const bool exists = LittleFS.exists(DIARY_PATH);
   File f = LittleFS.open(DIARY_PATH, FILE_APPEND);
   if (!f) {
@@ -293,7 +588,11 @@ static void handleDiaryAdd() {
   // CSV row
   // note is quoted/escaped
   String row;
-  row.reserve(512);
+  row.reserve(528);
+  // Stable numeric id: epoch seconds mixed with millis (avoids duplicates within one second)
+  const uint32_t diaryId = ((uint32_t)time(nullptr) << 6) ^ (uint32_t)(millis() & 0x3Fu);
+  row += String(diaryId);
+  row += ",";
   row += tsBuf;
   row += ",";
   row += phaseCsv;
@@ -313,6 +612,70 @@ static void handleDiaryAdd() {
 
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+}
+
+
+// POST /api/diary/delete
+// Accepts JSON {"id":"123"} or form id=123
+static void handleDiaryDelete() {
+  String id;
+  if (server.hasArg("plain") && server.arg("plain").length()) {
+    JsonDocument doc;
+    if (!deserializeJson(doc, server.arg("plain"))) {
+      id = (const char*)(doc["id"] | "");
+    }
+  }
+  if (!id.length() && server.hasArg("id")) id = server.arg("id");
+  id.trim();
+  if (!id.length()) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"id\"}");
+    return;
+  }
+
+  const bool ok = rewriteDiaryWithMutation(id, true, "", "");
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json; charset=utf-8", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+// POST /api/diary/update
+// Accepts JSON {"id":"123","note":"...","phase":"grow|flower|dry"} or form fields
+static void handleDiaryUpdate() {
+  String id, note, phaseStr;
+
+  if (server.hasArg("plain") && server.arg("plain").length()) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (!err) {
+      id = (const char*) (doc["id"] | "");
+      note = (const char*) (doc["note"] | "");
+      phaseStr = (const char*) (doc["phase"] | "");
+    }
+  }
+  if (!id.length() && server.hasArg("id")) id = server.arg("id");
+  if (!note.length() && server.hasArg("note")) note = server.arg("note");
+  if (!phaseStr.length() && server.hasArg("phase")) phaseStr = server.arg("phase");
+
+  id.trim(); note.trim(); phaseStr.trim();
+  if (!id.length()) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"id\"}");
+    return;
+  }
+  if (!note.length() && !phaseStr.length()) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"empty\"}");
+    return;
+  }
+
+  // Normalize phase to the same labels used elsewhere
+  String phaseNorm = phaseStr;
+  phaseNorm.toLowerCase();
+  if (!(phaseNorm == "grow" || phaseNorm == "flower" || phaseNorm == "dry")) {
+    // allow empty to mean "keep existing"
+    phaseNorm = "";
+  }
+
+  const bool ok = rewriteDiaryWithMutation(id, false, phaseNorm, note);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json; charset=utf-8", ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
 // GET /api/diary.csv  -> download the diary CSV
@@ -539,6 +902,8 @@ void setup() {
 
   // grow diary (LittleFS CSV)
   server.on("/api/diary/add", HTTP_POST, handleDiaryAdd);
+  server.on("/api/diary/update", HTTP_POST, handleDiaryUpdate);
+  server.on("/api/diary/delete", HTTP_POST, handleDiaryDelete);
   server.on("/api/diary.csv", HTTP_GET, handleDiaryDownload);
   server.on("/api/diary/clear", HTTP_POST, handleDiaryClear);
 
@@ -563,9 +928,7 @@ void setup() {
   server.on("/api/hint", HTTP_GET, handleHint);
 
   // diary list (for UI)
-  server.on("/api/diary/list", HTTP_GET, []() {
-    server.send(200, "application/json", "{\"items\":[]}");
-  });
+  server.on("/api/diary/list", HTTP_GET, handleDiaryList);
 
   server.on("/shelly/heater/toggle", HTTP_POST, []() {
     bool ok = false;

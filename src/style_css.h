@@ -543,3 +543,37 @@ const char cssContent[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 /* -------------------- Grow Diary -------------------- */
+
+  .diary-row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.08);
+    margin:8px 0;
+  }
+  .diary-row-left{ flex:1; min-width:0; }
+  .diary-date{ font-size:0.9rem; opacity:0.9; margin-bottom:4px; }
+  .diary-preview{ font-size:0.95rem; opacity:0.95; word-break:break-word; }
+  .diary-row-actions{
+    display:flex;
+    gap:6px;
+    align-items:flex-start;
+    flex-shrink:0;
+  }
+  .mini-btn{
+    font-size:0.8rem;
+    padding:6px 8px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.12);
+    background:rgba(255,255,255,0.06);
+    color:inherit;
+    cursor:pointer;
+  }
+  .mini-btn:hover{ background:rgba(255,255,255,0.10); }
+  .mini-btn.danger{
+    border-color: rgba(255,80,80,0.35);
+  }
+
+

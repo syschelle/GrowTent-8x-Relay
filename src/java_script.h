@@ -550,6 +550,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }[ch]));
   };
 
+
+  const escAttr = (s) => escapeHtml(String(s));
   // ===================================================================
   //  Unsaved/Status hint (8s, resets on new message)
   //  Target element: <span id="unsavedHint" class="dirty-hint" hidden ...>
@@ -882,16 +884,8 @@ window.addEventListener('DOMContentLoaded', () => {
       // Only do heavy DOM work when the status page (with grids) is visible.
       // This dramatically reduces layout/reflow cost on other pages.
       const statusActive = (getActivePageId() === 'status');
-
-      // ESP stats (CPU load)
-      if (typeof data.espLoadPct === 'number') {
-        setText('espLoadSpan', data.espLoadPct.toFixed(0));
-      } else {
-        setText('espLoadSpan', '--');
-      }
-
-      // If we're not on the Status page, stop here (CPU load in header is still updated).
-      if (!statusActive) return;
+      // If we're not on the Status page, stop here.
+if (!statusActive) return;
 
       // current
       if (isNum(data.curTemperature))        { setText('tempSpan', data.curTemperature.toFixed(1)); }
@@ -1536,6 +1530,10 @@ window.addEventListener('DOMContentLoaded', () => {
               <div class="diary-date">${escapeHtml(dtStr)}${phase ? ` • <span class="diary-phase">${phase}</span>` : ''}</div>
               <div class="diary-preview">${prev || ''}</div>
             </div>
+            <div class="diary-row-actions">
+              <button class="mini-btn" onclick="diaryEdit('${escAttr(it.id||'')}', '${escAttr(it.note||'')}', '${escAttr(it.phase||'')}')">Edit</button>
+              <button class="mini-btn danger" onclick="diaryDelete('${escAttr(it.id||'')}')">Del</button>
+            </div>
           </div>
         `;
       });
@@ -1551,6 +1549,47 @@ window.addEventListener('DOMContentLoaded', () => {
   function downloadDiaryCsv(){
     window.location.href = '/api/diary.csv'; // ggf. anpassen
   }
+
+
+
+  async function diaryDelete(id) {
+    if (!id) return;
+    if (!confirm('Eintrag wirklich löschen?')) return;
+    try {
+      const res = await fetch('/api/diary/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: String(id) })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.ok) throw new Error('delete');
+      await loadDiaryList();
+    } catch (e) {
+      alert('Löschen fehlgeschlagen');
+    }
+  }
+
+  async function diaryEdit(id, curNote, curPhase) {
+    if (!id) return;
+    const note = prompt('Notiz bearbeiten:', curNote || '');
+    if (note === null) return; // cancelled
+    const phase = prompt('Phase (grow|flower|dry) – leer lassen um unverändert zu lassen:', curPhase || '');
+    try {
+      const res = await fetch('/api/diary/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: String(id), note: String(note), phase: String(phase || '') })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.ok) throw new Error('update');
+      await loadDiaryList();
+    } catch (e) {
+      alert('Ändern fehlgeschlagen');
+    }
+  }
+
+  window.diaryDelete = diaryDelete;
+  window.diaryEdit = diaryEdit;
 
   // expose if you want to call from HTML onclick
   window.loadDiaryList = loadDiaryList;
@@ -1683,6 +1722,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
       ta.value = '';
       updateDiaryCounter();
+
+      // refresh list so the new entry appears immediately under the form
+      loadDiaryList();
 
       if (status) status.textContent = I18N['diary.saved'] || 'Saved ✓';
       setTimeout(() => { if (status) status.textContent = ''; }, 2500);

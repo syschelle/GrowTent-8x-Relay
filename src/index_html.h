@@ -64,8 +64,7 @@ const char* htmlPage = R"rawliteral(
       <div id="headerDate"></div>
       <div id="headerTime"></div>
     </div>
-    <div class="sysstats"><span class="syslabel">CPU</span> <span id="espLoadSpan">--</span>%</div>
-  </header>
+</header>
   <div class="layout">
     <nav class="sidebar" id="sidebar">
       <a class="navlink" data-page="status"   data-i18n="nav.status">Status</a>
