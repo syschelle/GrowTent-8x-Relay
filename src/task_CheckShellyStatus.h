@@ -7,7 +7,7 @@
 extern Preferences preferences;
 extern int amountOfWater;
 
-void taskWaterPumpOff(void *parameter){
+void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;
 
   for (;;) {
@@ -22,7 +22,7 @@ void taskWaterPumpOff(void *parameter){
         snprintf(
         buf,
         sizeof(buf),
-        "[TASK][Water_Pump_Off] free=%u words (%u bytes), min=%u words",
+        "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
         freeWords,
         freeWords * 4,
         minFree
@@ -31,17 +31,12 @@ void taskWaterPumpOff(void *parameter){
       logPrint(String(buf));
     }
 
-    // Handle relay off timing for irrigation pumps (relays 6,7,8)
-    unsigned long now = millis();
+    shelly.main.values = getShellyValues(settings.shelly.main, 0);
+    shelly.heat.values = getShellyValues(settings.shelly.heat, 0);
+    shelly.hum.values = getShellyValues(settings.shelly.hum, 0);
+    shelly.fan.values = getShellyValues(settings.shelly.fan, 0);
 
-    for (int idx = 5; idx <= 7; idx++) {  // Relay 6,7,8
-        if (relayActive[idx] && now >= relayOffTime[idx]) {
-            setRelay(idx, false);
-            relayActive[idx] = false;
-            tankLevelCm = pingTankLevel(TRIG, ECHO);
-        }
-    }
-    // task delay 1 second
-    vTaskDelay(pdMS_TO_TICKS(1000)); 
+    // task delay 10 seconds
+    vTaskDelay(pdMS_TO_TICKS(10000)); 
   }
 }

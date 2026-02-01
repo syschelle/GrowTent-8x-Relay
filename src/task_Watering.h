@@ -1,13 +1,36 @@
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
-#include <config.h>
+#include "globals.h"
+#include <cstdarg>
 
 extern Preferences preferences;
 extern int amountOfWater;
 
 void taskWatering(void *parameter){
+  static UBaseType_t minFree = UINT32_MAX;
+
   for (;;) {
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+    if (freeWords < minFree) minFree = freeWords;
+      static uint32_t last = 0;
+      if (millis() - last > 5000) {
+        last = millis();
+
+        char buf[96];
+        snprintf(
+        buf,
+        sizeof(buf),
+        "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
+        freeWords,
+        freeWords * 4,
+        minFree
+      );
+
+      logPrint(String(buf));
+    }
+
     if (irrigationRuns > 0) {
         wTimeLeft = calculateEndtimeWatering();
 
@@ -20,14 +43,14 @@ void taskWatering(void *parameter){
         setRelay(7, true);
         delay(secondsToMilliseconds(timePerTask)); // Pump on for 10 seconds
         setRelay(7, false);
-        if (irrigationRuns == 1) {
+        irrigationRuns = irrigationRuns - 1;
+        if (irrigationRuns == 0) {
           if (language == "de") {
             sendPushover("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
           } else {
             sendPushover("Irrigation completed.", "Irrigation completed.");
           }
         }
-        irrigationRuns = irrigationRuns - 1;
     }
 
     // delay between checks
@@ -38,7 +61,8 @@ void taskWatering(void *parameter){
       delay(minutesToMilliseconds(betweenTasks)); // wait 5 minutes before next run
     } else {
       wTimeLeft = "00:00";
-      delay(10000); // check again in 10 seconds
+      // task delay 10 seconds
+      vTaskDelay(pdMS_TO_TICKS(10000));
     } 
   }
 }

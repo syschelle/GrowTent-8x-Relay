@@ -2,7 +2,7 @@
 
 #pragma once
 
-const char* cssContent = R"rawliteral(
+const char cssContent[] PROGMEM = R"rawliteral(
 :root{
       --header:#2c3e50; --side:#34495e; --bg:#f5f5f5; --text:#333;
       --border:#dddddd; --muted:#ffffff; --link:#2c3e50;
@@ -215,13 +215,56 @@ const char* cssContent = R"rawliteral(
     }
 
     .metric {
-      flex: 1 1 220px;              /* wraps on smaller screens */
-      min-width: 200px;
+      flex: 1 1 200px;              /* wraps on smaller screens */
+      min-width: 180px;
       border: 1px solid var(--border, #ddd);
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       background: var(--muted, #fafafa);
+      /* isolate layout/paint to reduce reflow cost on frequent value updates */
+      contain: layout paint;
     }
+
+    /* -------- History charts -------- */
+    .history-head{display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .history-head h2{margin:0;}
+    .history-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+      margin-top:10px;
+      margin-bottom:16px;
+    }
+    @media (min-width:700px){
+      .history-grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .chart-card{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:10px;
+      background: var(--muted);
+      /* isolate layout/paint to reduce redraw cost */
+      contain: layout paint;
+    }
+    .chart-title{font-weight:600; font-size:.95rem; opacity:.9; margin-bottom:6px}
+    .chart-foot {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .chart-foot .sep {
+      margin: 0 6px;
+      opacity: 0.5;
+    }
+
+    .chart-foot .unit {
+      margin-left: 2px;
+      opacity: 0.8;
+    }
+    canvas{width:100%; height:auto; display:block}
 
     .metric-label {
       font-size: .95rem;
@@ -230,7 +273,7 @@ const char* cssContent = R"rawliteral(
     }
 
     .metric-value {
-      font-size: 1.6rem;
+      font-size: clamp(1.15rem, 1.2vw + 0.8rem, 1.45rem);
       font-weight: 700;
       display: flex;
       align-items: baseline;
@@ -270,12 +313,24 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-card {
+      flex: 1 1 180px;
+      max-width: 320px;
       background: var(--muted);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       min-width: 140px;
+      /* isolate layout/paint; these update often */
+      contain: layout paint;
+    }
+
+    /* Chromium-based browsers: skip rendering off-screen cards */
+    @supports (content-visibility: auto){
+      .metric, .chart-card, .relay-card{
+        content-visibility: auto;
+        contain-intrinsic-size: 260px;
+      }
     }
 
     .relay-card.active {
@@ -302,7 +357,8 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-status {
-      font-size: 1.1rem;
+      font-size: 0.85rem;     /* kleiner als Standard */
+      font-weight: 700; 
       height: 36px;
       display: flex;
       padding: 0.2rem 0.6rem;
@@ -341,6 +397,35 @@ const char* cssContent = R"rawliteral(
       gap: 4px;
     }
 
+    .shelly-status {
+      font-size: 0.85rem;
+      font-weight: 700;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .shelly-status .sub {
+      font-size: 0.70rem;
+      font-weight: 600;
+      opacity: 0.95;
+    }
+
+    .shelly-on {
+      background-color: #28a745;
+    }
+
+    .shelly-off {
+      background-color: #dc3545;
+    }
+
     .inline-checkbox {
       display: inline-flex;
       gap: 8px;
@@ -352,10 +437,109 @@ const char* cssContent = R"rawliteral(
       gap: 4px;
     }
 
+
+    /* Inline controls: responsive + compact */
+    .twoinone-label{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .twoinone-label > span{
+      white-space:nowrap;
+    }
+    .twoinone-label input,
+    .twoinone-label select{
+      flex: 1 1 180px;
+      min-width: 140px;
+    }
+    .control-sm{
+      padding:8px;
+      border-radius: 8px;
+    }
+    .control-xs{
+      flex: 0 0 auto;
+      min-width: 120px;
+      max-width: 160px;
+    }
+
     .info {
       font-size: 0.6rem;
       opacity: 0.8;
       margin-bottom: 8px;
     }
 
+    /* --- Variables / State page --- */
+    .vars-toolbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin: 12px 0;
+    }
+    .vars-meta{
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-bottom: 10px;
+    }
+    .table-wrap{ overflow:auto; border-radius: 12px; border: 1px solid var(--border); }
+    .vars-table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      min-width: 520px;
+    }
+    .vars-table th, .vars-table td{ padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .vars-table thead th{ position: sticky; top: 0; background: var(--card); z-index: 1; text-align:left; }
+    .vars-table td:first-child{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.85rem; }
+    .vars-table td:last-child{ word-break: break-word; }
+    @media (max-width: 640px){
+      .vars-table{ min-width: 0; }
+    }
+
+    .diary-grid{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 720px){
+      .diary-grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .diary-kpi{
+      padding: 12px;
+      border: 1px solid rgba(127,127,127,0.25);
+      border-radius: 12px;
+    }
+    .diary-kpi-title{
+      font-size: 0.9rem;
+      opacity: 0.85;
+      margin-bottom: 6px;
+    }
+    .diary-kpi-val{
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .diary-foot{
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+    .btn-row{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn.danger{
+      border-color: rgba(200,60,60,0.55);
+    }
+    .btn.danger:hover{
+      border-color: rgba(200,60,60,0.85);
+    }
+
 )rawliteral";
+
+/* -------------------- Grow Diary -------------------- */

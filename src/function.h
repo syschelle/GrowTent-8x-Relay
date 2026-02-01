@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <LittleFS.h>
@@ -10,6 +11,12 @@
 #include <WiFiClientSecure.h>
 #include <IPAddress.h>
 #include <HTTPClient.h>
+#include <base64.h>
+#include <mbedtls/md.h>
+
+// global, functions, html code, js code and css code includes
+#include "globals.h"
+#include <runtime.h>
 
 // Include platform-specific headers for inet_ntoa
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
@@ -22,9 +29,9 @@
 #define DS18B20_PIN 4
 #endif
 
-// Create OneWire + DallasTemperature objects (internal linkage so header can be included safely)
-static OneWire oneWire(DS18B20_PIN);
-static DallasTemperature sensors(&oneWire);
+// Declare OneWire + DallasTemperature objects (defined in function.cpp to avoid multiple/conflicting definitions)
+extern OneWire oneWire;
+extern DallasTemperature sensors;
 
 // declare the global WebServer instance defined elsewhere
 extern WebServer server;
@@ -35,15 +42,70 @@ extern volatile float DS18B20STemperature;
 extern unsigned long relayOffTime[];
 extern bool relayActive[];
 
+String getTimeString() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "--:--:--";
+  }
+
+  char buf[9];
+  snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
+           timeinfo.tm_hour,
+           timeinfo.tm_min,
+           timeinfo.tm_sec);
+  return String(buf);
+}
+
 // log buffer to store recent log lines
 void logPrint(const String& msg) {
-  // Output serially
-  Serial.println(msg);
+  time_t now = time(nullptr);
+  struct tm t;
+  localtime_r(&now, &t);
 
-  // Write to the weblog buffer
-  logBuffer.push_back(msg);
+  char ts[20];
+  strftime(ts, sizeof(ts), "%H:%M:%S", &t);
+
+  String line = String(ts) + " - " + msg;
+
+  Serial.println(line);
+
+  logBuffer.push_back(line);
   if (logBuffer.size() > LOG_MAX_LINES) {
-    logBuffer.pop_front();  // Remove old rows if exceeding max lines logBuffer.size()
+    logBuffer.pop_front();
+  }
+}
+
+bool checkFS() {
+  // Info abfragen (geht nur wenn gemountet)
+  size_t total = LittleFS.totalBytes();
+  size_t used  = LittleFS.usedBytes();
+
+  if (total == 0) {
+    logPrint("[LITTLEFS][ERROR] totalBytes=0 (not mounted?)");
+    return false;
+  }
+
+  // Test: Root existiert / Datei kann geöffnet werden
+  File f = LittleFS.open("/.health", FILE_WRITE);
+  if (!f) {
+    logPrint("[LITTLEFS][ERROR] cannot open /.health");
+    return false;
+  }
+  f.println("ok");
+  f.close();
+
+  logPrint("[LITTLEFS] OK total=" + String(total) + " used=" + String(used));
+  return true;
+}
+
+void sensorTask(void* pvParameters) {
+  for (;;) {
+    // ... dein Task-Code ...
+
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+    logPrint("[TASK][sensor] free stack: " + String(freeWords) + " words (" + String(freeWords * 4) + " bytes)");
+
+    vTaskDelay(pdMS_TO_TICKS(5000));
   }
 }
 
@@ -84,240 +146,152 @@ void startSoftAP() {
   }
 }
 
+// Helper function to save an integer preference if the corresponding argument is present
+void savePrefInt(
+  const char* argName,
+  const char* prefKey,
+  int& targetVar,
+  bool logValue = true,
+  const char* logLabel = nullptr
+) {
+  if (!server.hasArg(argName)) return;
 
-// Forward declaration so this header can call the function defined later
-String readSensorData();
-void calculateTimeSince(const String& startDate, int& daysSinceStartInt, int& weeksSinceStartInt);
-float avgTemp();
-float avgHum();
-float avgVPD();
-float avgWaterTemp();
+  targetVar = server.arg(argName).toInt();
+  preferences.putInt(prefKey, targetVar);
 
-// Forward-declare notification functions used before their definitions
-bool sendPushover(const String& message, const String& title);
-bool sendGotify(const String& msg, const String& title, int priority = 5);
-String calculateEndtimeWatering();
+  if (logLabel == nullptr) logLabel = prefKey;
 
-
-// Handle root path "/"
-void handleRoot() {
-  
-  String html;
-  if (espMode) {
-    String sensorData = readSensorData();
-
-    // Build HTML
-    html = FPSTR(apPage);
-    // Replace placeholders in index_html.h
-    html.replace("%CONTROLLERNAME%",  boxName);
-    } else {
-    html = FPSTR(htmlPage);
-
-    if (startDate != "") {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
-      if (language == "de") {
-        html.replace("%CURRENTGROW%", "Grow seit: Tag " + days + " / Woche " + weeks);
-      } else {
-        html.replace("%CURRENTGROW%", "Growing since: day " + days + " / week " + weeks);
-      } 
-    } else {
-      html.replace("%CURRENTGROW%", "");
-    }
-
-    if (curPhase == 1) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
-      if (language == "de") {
-        html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Wachstum: Tag " + days + " / Woche " + weeks + "</font>");
-      } else {
-        html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Vegetative: day " + days + " / week " + weeks + "</font>");
-      }
-    } else if (curPhase == 2) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startFlowering, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
-      if (language == "de") {
-        html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Blüte: Tag " + days + " / Woche " + weeks + "</font>");
-      } else {
-        html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Flowering: day " + days + " / week " + weeks + "</font>");
-      }
-    } else if (curPhase == 3) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDrying, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
-      if (language == "de") {
-        html.replace("%CURRENTPHASE%", "<font color=\"lightblue\">Trocknung: Tage " + days + " / Woche " + weeks + "</font>");
-      } else {
-        html.replace("%CURRENTPHASE%", "<font color=\"lightblue\">Drying: day " + days + " / week " + weeks + "</font>");
-      }
-    } else {
-      html.replace("%CURRENTPHASE%", "");
-    }
-
-    // Replace placeholders in index_html.h
-    html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
-    html.replace("%WATERTEMPERATURE%", String(DS18B20STemperature, 1));
-    html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
-    html.replace("%HUMIDITY%", String(lastHumidity, 0));
-    html.replace("%TARGETVPD%",  String(targetVPD, 1));
-    html.replace("%AVGTEMP%",  String(avgTemp(), 1));
-    html.replace("%AVGWATERTEMP%",  String(avgWaterTemp(), 1));
-    html.replace("%AVGHUM%",  String(avgHum(), 0));
-    html.replace("%AVGVPD%",  String(avgVPD(), 1));
-    html.replace("%RELAYNAMES1%", String(relayNames[0]));
-    html.replace("%RELAYNAMES2%", String(relayNames[1]));
-    html.replace("%RELAYNAMES3%", String(relayNames[2]));
-    html.replace("%RELAYNAMES4%", String(relayNames[3]));
-    html.replace("%RELAYNAMES5%", String(relayNames[4]));
-
-    html.replace("%CONTROLLERNAME%", boxName);
-    html.replace("%GROWSTARTDATE%", String(startDate));
-    html.replace("%GROWFLOWERDATE%", String(startFlowering));
-    html.replace("%GROWDRAYINGDATE%", String(startDrying));
-    html.replace("%TIMEPERTASK%", String(timePerTask));
-    html.replace("%BETWEENTASKS%", String(betweenTasks));
-    html.replace("%AMOUNTOFWATER%", String(amountOfWater));
-    html.replace("%IRRIGATION%", String(irrigation));
-    html.replace("%MINTANK%", String(minTank, 0));
-    html.replace("%MAXTANK%", String(maxTank, 0));
-
-    if (curPhase == 1) {
-      html.replace("%PHASE1_SEL%", "selected");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "");
-    } else if (curPhase == 2) {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "selected");
-      html.replace("%PHASE3_SEL%", "");
-    } else if (curPhase == 3) {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "selected");
-    } else {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "");
-    }
-
-    html.replace("%TARGETVPD%", String(targetVPD, 1));
-
-    html.replace("%SHELLYHEATERIP%", shellyHeaterDevice);
-    html.replace("%SHELLYHUMIDIFIERIP%", shellyHumidifierDevice);
-    html.replace("%SHELLYUSERNAME%", shellyUser);
-    html.replace("%SHELLYPASSWORD%", shellyPass);
-
-    html.replace("%NTPSERVER%", ntpServer);
-    html.replace("%TZINFO%", tzInfo);
-    html.replace("%THEME%", theme);
-    html.replace("%LANGUAGE%", language);
-    html.replace("%TIMEFORMAT%", timeFormat);
-    html.replace("%UNIT%", unit);
-    html.replace("%DS18B20ENABLE%", DS18B20Enable);
-    html.replace("%DS18B20NAME%", DS18B20Name);
-
-    html.replace("%PUSHOVERENABLED%", pushoverEnabled);
-    html.replace("%PUSHOVERAPPKEY%", pushoverAppKey);
-    html.replace("%PUSHOVERUSERKEY%", pushoverUserKey);
-    html.replace("%PUSHOVERDEVICE%", pushoverDevice);
-    html.replace("%GOTIFYENABLED%", gotifyEnabled);
-    html.replace("%GOTIFYURL%", gotifyServer);
-    html.replace("%GOTIFYTOKEN%", gotifyToken);
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
   }
-
-  server.send(200, "text/html", html);
 }
 
-// Read stored preferences
-void readPreferences() {
-  preferences.begin(PREF_NS, true);
-  //WIFI
-  ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
-  ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
-  // relays
-  relayNames[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
-  relayNames[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
-  relayNames[2] = preferences.isKey(KEY_RELAY_3) ? strdup(preferences.getString(KEY_RELAY_3).c_str()) : strdup("relay 3");
-  relayNames[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
-  relayNames[4] = preferences.isKey(KEY_RELAY_5) ? strdup(preferences.getString(KEY_RELAY_5).c_str()) : strdup("relay 5");
-  // running settings
-  startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String();
-  startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String();
-  startDrying = preferences.isKey(KEY_DRYINGDATE) ? preferences.getString(KEY_DRYINGDATE) : String();
-  curPhase = preferences.isKey(KEY_CURRENTPHASE) ? preferences.getInt(KEY_CURRENTPHASE) : 1;
-  targetTemperature = preferences.isKey(KEY_TARGETTEMP) ? preferences.getFloat(KEY_TARGETTEMP) : 22.0;
-  offsetLeafTemperature = preferences.isKey(KEY_LEAFTEMP) ? preferences.getFloat(KEY_LEAFTEMP) : -1.5;
-  targetVPD = preferences.isKey(KEY_TARGETVPD) ? preferences.getFloat(KEY_TARGETVPD) : 1.0;
-  amountOfWater = preferences.isKey(KEY_AMOUNTOFWATER) ? preferences.getInt(KEY_AMOUNTOFWATER) : 20;
-  irrigation = preferences.isKey(KEY_IRRIGATION) ? preferences.getInt(KEY_IRRIGATION) : 500;
-  timePerTask = preferences.isKey(KEY_TIMEPERTASK) ? preferences.getInt(KEY_TIMEPERTASK) : 10;
-  betweenTasks = preferences.isKey(KEY_BETWEENTASKS) ? preferences.getInt(KEY_BETWEENTASKS) : 5;
-  minTank = preferences.isKey(KEY_MINTANK) ? preferences.getFloat(KEY_MINTANK) : 10.0f;
-  maxTank = preferences.isKey(KEY_MAXTANK) ? preferences.getFloat(KEY_MAXTANK) : 90.0f;
+void savePrefFloat(
+  const char* argName,
+  const char* prefKey,
+  float& targetVar,
+  bool logValue = true,
+  const char* logLabel = nullptr
+) {
+  if (!server.hasArg(argName)) return;
 
-  // relay schedules
-  // Use explicit key names and provide a default value for getBool() to match the Preferences API
-  relaySchedulesEnabled[0] = preferences.getBool("relay_enable_1", false);
-  relaySchedulesStart[0] = preferences.getInt(KEY_RELAY_START_1, 0);
-  relaySchedulesEnd[0] = preferences.getInt(KEY_RELAY_END_1, 0);
-  relaySchedulesEnabled[1] = preferences.getBool("relay_enable_2", false);
-  relaySchedulesStart[1] = preferences.getInt(KEY_RELAY_START_2, 0);
-  relaySchedulesEnd[1] = preferences.getInt(KEY_RELAY_END_2, 0);
-  relaySchedulesEnabled[2] = preferences.getBool("relay_enable_3", false);
-  relaySchedulesStart[2] = preferences.getInt(KEY_RELAY_START_3, 0);
-  relaySchedulesEnd[2] = preferences.getInt(KEY_RELAY_END_3, 0);
-  relaySchedulesEnabled[3] = preferences.getBool("relay_enable_4", false);
-  relaySchedulesStart[3] = preferences.getInt(KEY_RELAY_START_4, 0);
-  relaySchedulesEnd[3] = preferences.getInt(KEY_RELAY_END_4, 0);
-  relaySchedulesEnabled[4] = preferences.getBool("relay_enable_5", false);
-  relaySchedulesStart[4] = preferences.getInt(KEY_RELAY_START_5, 0);
-  relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_5, 0);
+  String v = server.arg(argName);
+  targetVar = v.toFloat();
 
-  shellyHeaterDevice = preferences.isKey(KEY_SHELLYHEATIP) ? preferences.getString(KEY_SHELLYHEATIP) : String("");
-  shellyHumidifierDevice = preferences.isKey(KEY_SHELLYHUMIP) ? preferences.getString(KEY_SHELLYHUMIP) : String("");
-  shellyUser = preferences.isKey(KEY_SHELLYUSERNAME) ? preferences.getString(KEY_SHELLYUSERNAME) : String("");
-  shellyPass = preferences.isKey(KEY_SHELLYPASSWORD) ? preferences.getString(KEY_SHELLYPASSWORD) : String("");
+  preferences.putFloat(prefKey, targetVar);
 
-  // settings
-  boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
-  ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
-  tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
-  language = preferences.isKey(KEY_LANG) ? preferences.getString(KEY_LANG) : String("de");
-  theme = preferences.isKey(KEY_THEME) ? preferences.getString(KEY_THEME) : String("light");
-  unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
-  timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
-  DS18B20Enable = preferences.isKey(KEY_DS18B20ENABLE) ? preferences.getString(KEY_DS18B20ENABLE) : String("");
-  if (DS18B20Enable == "checked") DS18B20 = true;
-  DS18B20Name = preferences.isKey(KEY_DS18NAME) ? preferences.getString(KEY_DS18NAME) : String("");
-  // notification settings
-  pushoverEnabled = preferences.isKey(KEY_PUSHOVER) ? preferences.getString(KEY_PUSHOVER) : String("");
-  if (pushoverEnabled == "checked") pushoverSent = true;  
-  pushoverAppKey = preferences.isKey(KEY_PUSHOVERAPP) ? preferences.getString(KEY_PUSHOVERAPP) : String("");
-  pushoverUserKey = preferences.isKey(KEY_PUSHOVERUSER) ? preferences.getString(KEY_PUSHOVERUSER) : String("");
-  pushoverDevice = preferences.isKey(KEY_PUSHOVERDEVICE) ? preferences.getString(KEY_PUSHOVERDEVICE) : String("");
-  gotifyEnabled = preferences.isKey(KEY_GOTIFY) ? preferences.getString(KEY_GOTIFY) : String("");
-  if (gotifyEnabled == "checked") gotifySent = true;
-  gotifyServer = preferences.isKey(KEY_GOTIFYSERVER) ? preferences.getString(KEY_GOTIFYSERVER) : String("");
-  gotifyToken = preferences.isKey(KEY_GOTIFYTOKEN) ? preferences.getString(KEY_GOTIFYTOKEN) : String("");
+  if (logLabel == nullptr) logLabel = prefKey;
 
-  preferences.end();
-  logPrint("[PREF] loading - ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
-           " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo + "curentPhase:" + String(curPhase) +
-           " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
-           " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature +
-           " targetVPD:" + targetVPD + " curPhase:" + String(curPhase) + " Relayname1:" + relayNames[0] + 
-           " Relayname2:" + relayNames[1] + " Relayname3:" + relayNames[2] + " Relayname4:" + relayNames[3] +
-           " AmountOfWater:" + String(amountOfWater) + " Irrigation:" + String(irrigation));
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) +
+             " = " + String(targetVar, 2));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
+  }
+}
+
+// Helper function to save a boolean preference if the corresponding argument is present
+void savePrefBool(
+  const char* argName,
+  const char* prefKey,
+  bool& targetVar,
+  bool logValue = true,
+  const char* logLabel = nullptr
+) {
+  if (!server.hasArg(argName)) return;
+
+  String val = server.arg(argName);
+
+  // HTML Checkbox: "on", "1", "true"
+  targetVar = (val == "1" || val == "on" || val == "true");
+
+  preferences.putBool(prefKey, targetVar);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES save] " + String(logLabel) +
+             " = " + String(targetVar ? "true" : "false"));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+  }
+}
+
+void loadPrefInt(
+  const char* prefKey,
+  int& targetVar,
+  int defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getInt(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+  }
+}
+
+void loadPrefFloat(
+  const char* prefKey,
+  float& targetVar,
+  float defaultValue,
+  bool logValue,
+  const char* logLabel,
+  uint8_t decimals
+) {
+  targetVar = preferences.getFloat(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.*f", decimals, targetVar);
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(buf));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+  }
+}
+
+void loadPrefBool(
+  const char* prefKey,
+  bool& targetVar,
+  bool defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getBool(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"));
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+  }
+}
+
+void loadPrefString(
+  const char* prefKey,
+  String& targetVar,
+  const char* defaultValue,
+  bool logValue,
+  const char* logLabel
+) {
+  targetVar = preferences.getString(prefKey, defaultValue);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + targetVar);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+  }
 }
 
 void handleSaveRunsettings() {
@@ -330,94 +304,20 @@ void handleSaveRunsettings() {
     return;
   }
 
-  // Save grow start date if provided
-  if (server.hasArg("webGrowStart")) {
-    startDate = server.arg("webGrowStart");
-    preferences.putString(KEY_STARTDATE, startDate);
-    logPrint("[PREFERENCES] " + String(KEY_STARTDATE) + " written : " + startDate);
-  }
-
-  // Save flowering start date if provided
-  if (server.hasArg("webFloweringStart")) {
-    startFlowering = server.arg("webFloweringStart");
-    preferences.putString(KEY_FLOWERDATE, startFlowering);
-    logPrint("[PREFERENCES] " + String(KEY_FLOWERDATE) + " written: " + startFlowering);
-  }
-
-  // Save drying start date if provided
-  if (server.hasArg("webDryingStart")) {
-    String startDrying = server.arg("webDryingStart");
-    preferences.putString(KEY_DRYINGDATE, startDrying);
-    logPrint("[PREFERENCES] " + String(KEY_DRYINGDATE) + " written: " + startDrying);
-  }
-
-  // Save current phase if provided
-  if (server.hasArg("webCurrentPhase")) {
-    curPhase = server.arg("webCurrentPhase").toInt();
-    preferences.putInt(KEY_CURRENTPHASE, curPhase);
-    logPrint("[PREFERENCES] " + String(KEY_CURRENTPHASE) + " written: " + curPhase);
-  }
-
-  // Save target temperature if provided
-  if (server.hasArg("webTargetTemp")) {
-    targetTemperature = server.arg("webTargetTemp").toFloat();
-    preferences.putFloat(KEY_TARGETTEMP, targetTemperature);
-    logPrint("[PREFERENCES] " + String(KEY_TARGETTEMP) + " written: " + targetTemperature);
-  }
-
-  // Save target VPD if provided
-  if (server.hasArg("webTargetVPD")) {
-    targetVPD = server.arg("webTargetVPD").toFloat();
-    preferences.putFloat(KEY_TARGETVPD, targetVPD);
-    logPrint("[PREFERENCES] " + String(KEY_TARGETVPD) + " written: " + targetVPD);
-  }
-
-  // Save leaf temperature offset if provided
-  if (server.hasArg("webOffsetLeafTemp")) {
-    preferences.putFloat(KEY_LEAFTEMP, server.arg("webOffsetLeafTemp").toFloat());
-    logPrint("[PREFERENCES] " + String(KEY_LEAFTEMP) + " written: " + offsetLeafTemperature);
-  }
-
-  // Save time per task if provided
-  if (server.hasArg("webTimePerTask")) {
-    timePerTask = server.arg("webTimePerTask").toInt();
-    preferences.putInt(KEY_TIMEPERTASK, timePerTask);
-    logPrint("[PREFERENCES] " + String(KEY_TIMEPERTASK) + " written: " + timePerTask);
-  }
-
-  // Save pause between tasks if provided
-  if (server.hasArg("webBetweenTasks")) {
-    betweenTasks = server.arg("webBetweenTasks").toInt();
-    preferences.putInt(KEY_BETWEENTASKS, betweenTasks);
-    logPrint("[PREFERENCES] " + String(KEY_BETWEENTASKS) + " written: " + betweenTasks);
-  }
-  // Save amount of water if provided
-  if (server.hasArg("webAmountOfWater")) {
-    amountOfWater = server.arg("webAmountOfWater").toInt();
-    preferences.putInt(KEY_AMOUNTOFWATER, amountOfWater);
-    logPrint("[PREFERENCES] " + String(KEY_AMOUNTOFWATER) + " written: " + amountOfWater);
-  }
-
-  // Save amount of irrigation if provided
-  if (server.hasArg("webIrrigation")) {
-    irrigation = server.arg("webIrrigation").toInt();
-    preferences.putInt(KEY_IRRIGATION, irrigation);
-    logPrint("[PREFERENCES] " + String(KEY_IRRIGATION) + " written: " + irrigation);
-  }
-
-  // Save min tank level if provided
-  if (server.hasArg("webMinTank")) {
-    minTank = server.arg("webMinTank").toFloat();
-    preferences.putFloat(KEY_MINTANK, minTank);
-    logPrint("[PREFERENCES] " + String(KEY_MINTANK) + " written: " + String(minTank, 0));
-  }
-
-  // Save max tank level if provided
-  if (server.hasArg("webMaxTank")) {
-    maxTank = server.arg("webMaxTank").toFloat();
-    preferences.putFloat(KEY_MAXTANK, maxTank);
-    logPrint("[PREFERENCES] " + String(KEY_MAXTANK) + " written: " + String(maxTank, 0));
-  }
+  // Save all run settings
+  savePrefString("webStartDate", KEY_STARTDATE, startDate, "Grow Start Date");
+  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, "Flowering Start Date");
+  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, "Drying Start Date");
+  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, "Current Phase");
+  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, "Target Temperature");
+  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, "Target VPD");
+  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, "Leaf Temperature Offset");
+  savePrefInt("webTimePerTask", KEY_TIMEPERTASK, timePerTask, "Time Per Task");
+  savePrefInt("webBetweenTasks", KEY_BETWEENTASKS, betweenTasks, "Pause Between Tasks");
+  savePrefInt("webAmountOfWater", KEY_AMOUNTOFWATER, amountOfWater, "Amount Of Water");
+  savePrefInt("webIrrigation", KEY_IRRIGATION, irrigation, "Irrigation Interval");
+  savePrefFloat("webMinTank", KEY_MINTANK, minTank, "Min Tank Level");
+  savePrefFloat("webMaxTank", KEY_MAXTANK, maxTank, "Max Tank Level");
 
   preferences.end(); // always close Preferences handle
 
@@ -430,158 +330,112 @@ void handleSaveRunsettings() {
 
 // Handle Shelly settings save
 void handleSaveShellySettings() {
-  // Open the Preferences namespace with write access (readOnly = false)
-  // Only call begin() once — calling it twice can cause writes to fail!
+
   if (!preferences.begin(PREF_NS, false)) {
-    logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
-  // Save Shelly Heater IP if provided
-  if (server.hasArg("webShellyHeatIP")) {
-    shellyHeaterDevice = server.arg("webShellyHeatIP");
-    preferences.putString(KEY_SHELLYHEATIP, shellyHeaterDevice);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYHEATIP) + " written bytes: " + shellyHeaterDevice);
-  }
+  // --- MAIN ---
+  // IPv4-only: normalize/validate IP strings before saving
+  auto normalizeIPv4 = [](String& ip) {
+    ip.trim();
+    if (ip.length() == 0) return;
+    IPAddress tmp;
+    if (!tmp.fromString(ip)) {
+      // invalid -> clear to avoid saving DNS/IPv6/garbage
+      ip = "";
+      return;
+    }
+    ip = tmp.toString();
+  };
 
-  // Save Shelly Humidifier IP if provided
-  if (server.hasArg("webShellyHumIP")) {
-    shellyHumidifierDevice = server.arg("webShellyHumIP");
-    preferences.putString(KEY_SHELLYHUMIP, shellyHumidifierDevice);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYHUMIP) + " written bytes: " + shellyHumidifierDevice);
-  }
+  // keep Settings as source of truth
+  normalizeIPv4(settings.shelly.main.ip);
+  savePrefString("webShellyMainIP",   KEY_SHELLYMAINIP,   settings.shelly.main.ip,   "Main IP");
+  savePrefInt   ("webShellyMainGen",  KEY_SHELLYMAINGEN,  settings.shelly.main.gen,  "Main Gen");
 
-  // Save Shelly Username if provided
-  if (server.hasArg("webShellyUsername")) {
-    shellyUser = server.arg("webShellyUsername");
-    preferences.putString(KEY_SHELLYUSERNAME, shellyUser);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYUSERNAME) + " written bytes: " + shellyUser);
-  }
+  // --- HEATER ---
+  normalizeIPv4(settings.shelly.heat.ip);
+  savePrefString("webShellyHeatIP",   KEY_SHELLYHEATIP,   settings.shelly.heat.ip,   "Heat IP");
+  savePrefInt   ("webShellyHeatGen",  KEY_SHELLYHEATGEN,  settings.shelly.heat.gen,  "Heat Gen");
 
-  // Save Shelly Password if provided
-  if (server.hasArg("webShellyPassword")) {
-    shellyPass = server.arg("webShellyPassword");
-    preferences.putString(KEY_SHELLYPASSWORD, shellyPass);
-    logPrint("[PREFERENCES] " + String(KEY_SHELLYPASSWORD) + " written bytes: " + shellyPass);
-  }
+  // --- HUM ---
+  normalizeIPv4(settings.shelly.hum.ip);
+  savePrefString("webShellyHumIP",    KEY_SHELLYHUMIP,    settings.shelly.hum.ip,   "Hum IP");
+  savePrefInt   ("webShellyHumGen",   KEY_SHELLYHUMGEN,   settings.shelly.hum.gen,  "Hum Gen");
+  // --- FAN ---
+  normalizeIPv4(settings.shelly.fan.ip);
+  savePrefString("webShellyFanIP",    KEY_SHELLYFANIP,    settings.shelly.fan.ip,   "Fan IP");
+  savePrefInt   ("webShellyFanGen",   KEY_SHELLYFANGEN,   settings.shelly.fan.gen,  "Fan Gen");
+  // --- AUTH ---
+  savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, settings.shelly.username, "User");
+  savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, "Pass");
 
-  preferences.end(); // always close Preferences handle
+  preferences.end();
 
-  // Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
-  server.send(303);  // HTTP redirect to status page
+  server.send(303);
   delay(250);
   ESP.restart();
+}
+
+// Helper function to save a string preference to a C-style string if the corresponding argument is present
+void savePrefStringToCString(
+  const char* argName,
+  const char* prefKey,
+  char*& targetPtr,
+  bool logValue = true,
+  const char* logLabel = nullptr
+) {
+  if (!server.hasArg(argName)) return;
+
+  String v = server.arg(argName);
+  preferences.putString(prefKey, v);
+
+  // 🔥 alten Speicher freigeben
+  if (targetPtr != nullptr) {
+    free(targetPtr);
+    targetPtr = nullptr;
+  }
+
+  targetPtr = strdup(v.c_str());
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v);
+  } else {
+    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
+  }
 }
 
 // Handle general settings save
 void handleSaveSettings() {
   // Open the Preferences namespace with write access (readOnly = false)
   // Only call begin() once — calling it twice can cause writes to fail!
-  if (!preferences.begin(PREF_NS, false)) {
+  if (!preferences.begin(PREF_NS)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
              "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
-  // Save box name if provided
-  if (server.hasArg("webBoxName")) {
-    boxName = server.arg("webBoxName");
-    preferences.putString(KEY_NAME, boxName);
-    logPrint("[PREFERENCES] " + String(KEY_NAME) + " written bytes: " + boxName);
-  }
-  
-  // Save NTP server if provided
-  if (server.hasArg("webNTPServer")) {
-    ntpServer = server.arg("webNTPServer");
-    preferences.putString(KEY_NTPSRV, ntpServer);
-    logPrint("[PREFERENCES] " + String(KEY_NTPSRV) + " written bytes: " + ntpServer);
-  }
-
-  // Save timezone info if provided
-  if (server.hasArg("webTimeZoneInfo")) {
-    tzInfo = server.arg("webTimeZoneInfo");
-    preferences.putString(KEY_TZINFO, tzInfo);
-    logPrint("[PREFERENCES] " + String(KEY_TZINFO) + " written bytes: " + tzInfo);
-  } 
-
-  // Save language if provided
-  if (server.hasArg("webLanguage")) {
-    language = server.arg("webLanguage");
-    preferences.putString(KEY_LANG, language);
-    logPrint("[PREFERENCES] " + String(KEY_LANG) + " written bytes: " + language);
-  }
-
-  // Save theme if provided
-  if (server.hasArg("webTheme")) {
-    theme = server.arg("webTheme");
-    preferences.putString(KEY_THEME, theme);
-    logPrint("[PREFERENCES] " + String(KEY_THEME) + " written bytes: " + theme);
-  }
-  // 7) Save time format if provided
-  if (server.hasArg("webTimeFormat")) {
-    timeFormat = server.arg("webTimeFormat");
-    preferences.putString(KEY_TFMT, timeFormat);
-    logPrint("[PREFERENCES] " + String(KEY_TFMT) + " written bytes: " + timeFormat);
-  }
-  // 8) Save unit if provided
-  if (server.hasArg("webTempUnit")) {
-    unit = server.arg("webTempUnit");
-    preferences.putString(KEY_UNIT, unit);
-    logPrint("[PREFERENCES] " + String(KEY_UNIT) + " written bytes: " + unit);
-  }
-
-  if (server.arg("webDS18B20Enable") == "on") {
-    DS18B20Enable = "checked";
-  } else {
-    DS18B20Enable = "";
-  }
-  logPrint("[PREFERENCES] " + String(KEY_DS18B20ENABLE) + " " + String(DS18B20Enable));
-  preferences.putString(KEY_DS18B20ENABLE, DS18B20Enable);
-
-  if (server.hasArg("webDS18B20Name")) {
-    DS18B20Name = server.arg("webDS18B20Name");
-    preferences.putString(KEY_DS18NAME, DS18B20Name);
-    logPrint("[PREFERENCES] ds18b20_name written bytes: " + DS18B20Name);
-  }
-
-  if (server.hasArg("webRelayName1")) {
-    String v = server.arg("webRelayName1");
-    preferences.putString(KEY_RELAY_1, v);
-    logPrint("[PREFERENCES] " + String(KEY_RELAY_1) + " written bytes: " + v);
-    relayNames[0] = strdup(v.c_str());
-  }
-
-  if (server.hasArg("webRelayName2")) {
-    String v = server.arg("webRelayName2");
-    preferences.putString(KEY_RELAY_2, v);
-    logPrint("[PREFERENCES] " + String(KEY_RELAY_2) + " written bytes: " + v);
-    relayNames[1] = strdup(v.c_str());
-  }
-
-  if (server.hasArg("webRelayName3")) {
-    String v = server.arg("webRelayName3");
-    preferences.putString(KEY_RELAY_3, v);
-    logPrint("[PREFERENCES] " + String(KEY_RELAY_3) + " written bytes: " + v);
-    relayNames[2] = strdup(v.c_str());
-  }
-
-  if (server.hasArg("webRelayName4")) {
-    String v = server.arg("webRelayName4");
-    preferences.putString(KEY_RELAY_4, v);
-    logPrint("[PREFERENCES] " + String(KEY_RELAY_4) + " written bytes: " + v);
-    relayNames[3] = strdup(v.c_str());
-  }
-
-  if (server.hasArg("webRelayName5")) {
-    String v = server.arg("webRelayName5");
-    preferences.putString(KEY_RELAY_5, v);
-    logPrint("[PREFERENCES] " + String(KEY_RELAY_5) + " written bytes: " + v);
-    relayNames[4] = strdup(v.c_str());
-  }
+  savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
+  savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
+  savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
+  savePrefString("webLanguage", KEY_LANG, language);
+  savePrefString("webTheme", KEY_THEME, theme);
+  savePrefString("webTimeFormat", KEY_TFMT, timeFormat);
+  savePrefString("webTempUnit", KEY_UNIT, unit);
+  savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
+  savePrefBool("webDS18B20Enable", KEY_DS18B20ENABLE, DS18B20, "DS18B20 Enable");
+  savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
+  savePrefString("webRelayName1", KEY_RELAY_1, relayNames[0], "Relay 1 Name");
+  savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], "Relay 2 Name");
+  savePrefString("webRelayName3", KEY_RELAY_3, relayNames[2], "Relay 3 Name");
+  savePrefString("webRelayName4", KEY_RELAY_4, relayNames[3], "Relay 4 Name");
+  savePrefString("webRelayName5", KEY_RELAY_5, relayNames[4], "Relay 5 Name");
 
   preferences.end(); // always close Preferences handle
 
@@ -593,7 +447,7 @@ void handleSaveSettings() {
 }
 
 void handleSaveMessageSettings() {
-  if (!preferences.begin(PREF_NS, false)) {
+  if (!preferences.begin(PREF_NS)) {
     logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
              "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
@@ -606,26 +460,9 @@ void handleSaveMessageSettings() {
     pushoverEnabled = "";
   }
 
-  logPrint("[PREFERENCES] Pushover " + String(pushoverEnabled));
-  preferences.putString(KEY_PUSHOVER, pushoverEnabled);
-
-  if (server.hasArg("webPushoverUserKey")) {
-    pushoverUserKey = server.arg("webPushoverUserKey");
-    preferences.putString(KEY_PUSHOVERUSER, pushoverUserKey);
-    logPrint("[PREFERENCES] " + String(KEY_PUSHOVERUSER) + " written bytes: " + pushoverUserKey);
-  }
-
-  if (server.hasArg("webPushoverAppKey")) {
-    pushoverAppKey = server.arg("webPushoverAppKey");
-    preferences.putString(KEY_PUSHOVERAPP, pushoverAppKey);
-    logPrint("[PREFERENCES] " + String(KEY_PUSHOVERAPP) + " written bytes: " + pushoverAppKey);
-  }
-
-  if (server.hasArg("webPushoverDevice")) {
-    pushoverDevice = server.arg("webPushoverDevice");
-    preferences.putString(KEY_PUSHOVERDEVICE, pushoverDevice);
-    logPrint("[PREFERENCES] " + String(KEY_PUSHOVERDEVICE) + " written bytes: " + pushoverDevice);
-  }
+  savePrefString("webPushoverUserKey", KEY_PUSHOVERUSER, pushoverUserKey, "Pushover User Key");
+  savePrefString("webPushoverAppKey", KEY_PUSHOVERAPP, pushoverAppKey, "Pushover App Key");
+  savePrefString("webPushoverDevice", KEY_PUSHOVERDEVICE, pushoverDevice, "Pushover Device");
   
   if (server.arg("webGotifyEnabled") == "on") {
     gotifyEnabled = "checked";
@@ -635,17 +472,8 @@ void handleSaveMessageSettings() {
   logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled));
   preferences.putString(KEY_GOTIFY, gotifyEnabled);
 
-  if (server.hasArg("webGotifyURL")) { 
-    gotifyServer = server.arg("webGotifyURL");
-    preferences.putString(KEY_GOTIFYSERVER, gotifyServer);
-    logPrint("[PREFERENCES] " + String(KEY_GOTIFYSERVER) + " written bytes: " + gotifyServer);
-  }
-
-  if (server.hasArg("webGotifyToken")) {
-    gotifyToken = server.arg("webGotifyToken");
-    preferences.putString(KEY_GOTIFYTOKEN, gotifyToken);
-    logPrint("[PREFERENCES] " + String(KEY_GOTIFYTOKEN) + " written bytes: " + gotifyToken);
-  }
+  savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, "Gotify Server URL");
+  savePrefString("webGotifyToken", KEY_GOTIFYTOKEN, gotifyToken, "Gotify Token");
 
   preferences.end(); // always close Preferences handle
 
@@ -691,6 +519,27 @@ void handleSaveWiFi() {
   }
 }
 
+// key, detailsJson = "{}"
+void pushHintKey(const String& key, const String& detailsJson = "{}") {
+  hintKey = key;
+  hintDetailsJson = detailsJson;
+  hintId++;
+}
+
+// API: /get hint
+void handleHint() {
+  // {"id":1,"key":"hint.saved","details":{"percent":12}}
+  String json = "{\"id\":" + String(hintId) + ",\"key\":\"";
+
+  // escape quotes/backslashes in key
+  String escapedKey = hintKey;
+  escapedKey.replace("\\", "\\\\");
+  escapedKey.replace("\"", "\\\"");
+  json += escapedKey + "\",\"details\":" + hintDetailsJson + "}";
+
+  server.send(200, "application/json", json);
+}
+
 // Handle factory reset
 void handleFactoryReset() {
   preferences.begin(PREF_NS, false);
@@ -702,21 +551,71 @@ void handleFactoryReset() {
   ESP.restart();
 }
 
-// NTP sync
-void syncDateTime() {
-  // syncing NTP time
-  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo);
-  configTzTime(tzInfo.c_str(), ntpServer.c_str());  // Synchronizing ESP32 system time with NTP
-  if (getLocalTime(&local, 10000)) { // Try to synchronize up to 10s
-    // set actual date in global variable actualDate
-    char readDate[11]; // YYYY-MM-DD + null
+// initial NTP sync (called at boot)
+void initialSyncBlocking() {
+  logPrint("[BOOT] Initial NTP sync...");
+
+  // Start Sync
+  configTzTime(tzInfo.c_str(), ntpServer.c_str());
+
+  struct tm local;
+  unsigned long start = millis();
+
+  // Wait up to 2 seconds for time
+  while (millis() - start < 2000) {
+    if (getLocalTime(&local, 50)) {
+      char buf[64];
+      strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", &local);
+      logPrint(String("[BOOT] Time initialized: ") + buf);
+      return;
+    }
+    delay(50); // do not block completely
+  }
+
+  logPrint("[BOOT] Failed initial NTP sync");
+}
+
+// Daily NTP trigger at 01:00
+void dailyNtpTrigger() {
+  if (!wifiReady) return;
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 50)) return;  // try to get time (non-blocking, max 50ms)
+
+  if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
+    logPrint("Performing daily NTP sync...");
+    configTzTime(tzInfo.c_str(), ntpServer.c_str());
+
+    ntpSyncPending = true;
+    ntpStartMs = millis();
+
+    // so it really only fires once per day:
+    lastSyncDay = timeinfo.tm_mday;
+  }
+}
+
+// NTP sync tick (non-blocking)
+void ntpSyncTick() {
+  if (!ntpSyncPending) return;
+
+  struct tm local;
+  // try to get time (non-blocking, max 50ms)
+  if (getLocalTime(&local, 50)) {
+    char readDate[11];
     strftime(readDate, sizeof(readDate), "%Y-%m-%d", &local);
-    lastSyncDay = local.tm_mday;
+
     char buf[64];
     strftime(buf, sizeof(buf), "now: %d.%m.%y  Zeit: %H:%M:%S", &local);
-    logPrint(String("[DATETIME] ") + buf);  // Format date print output
-  } else {
-    logPrint("[DATETIME] Failed to obtain time");
+    logPrint(String("[DATETIME] ") + buf);
+
+    ntpSyncPending = false;
+    return;
+  }
+
+  // timeout after 15 seconds
+  if (millis() - ntpStartMs > 15000) {
+    logPrint("[DATETIME] NTP sync timeout (non-blocking)");
+    ntpSyncPending = false;
   }
 }
 
@@ -736,7 +635,7 @@ void calculateTimeSince(const String& startDate, int &days, int &weeks) {
   days = (diffSec / 86400) + 1;
   weeks = (days / 7) + 1;
 
-  //logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
+  logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
 }
 
 // Convert minutes to milliseconds (int return type)
@@ -750,27 +649,27 @@ int secondsToMilliseconds(int seconds) {
 }
 
 // CSV: ts_ms,tempC,hum,vpd\n
-static void appendLog(uint32_t ts, float t, float h, float v) {
+// Append one CSV line: ts_ms,tempC,humPct,vpdKpa
+void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd) {
   File f = LittleFS.open(LOG_PATH, FILE_APPEND);
-  if (!f) { logPrint("appendLog: open failed"); return; }
-  logPrint("[LITTLEFS] Loging data: " + String(ts) + "," + String(t,1) + "," + String(h,0) + "," + String(v,1));
-  // Zahlen schlank formatieren
-  String line;
-  line.reserve(40);
-  line += String(ts); line += ',';
-  line += String(t, 2); line += ',';
-  line += String(h, 0); line += ',';
-  line += String(v, 3); line += '\n';
-  if(f.print(line)){
-        logPrint("[LITTLEFS] " + String(LOG_PATH) + " file written");
-    } else {
-        logPrint("[LITTLEFS] " + String(LOG_PATH) + " write failed");
-    }
-    f.close();
+  if (!f) {
+    logPrint("[LITTLEFS][ERROR] Failed to open log for append: " + String(LOG_PATH));
+    return;
+  }
+
+  f.print(String(timestamp));
+  f.print(',');
+  f.print(String(temperature, 2));
+  f.print(',');
+  f.print(String(humidity, 2));
+  f.print(',');
+  f.print(String(vpd, 3));
+  f.print('\n');
+  f.close();
 }
 
 // Compaction: discard everything < (now-RETAIN_MS)
-static void compactLog() {
+void compactLog() {
   const uint32_t now = millis();
   const uint32_t cutoff = (now > RETAIN_MS) ? (now - RETAIN_MS) : 0;
 
@@ -798,6 +697,10 @@ static void compactLog() {
 
   LittleFS.remove(LOG_PATH);
   LittleFS.rename("/envlog.tmp", LOG_PATH);
+}
+
+inline float avgValue(float sum, uint32_t count) {
+  return (count == 0) ? 0.0f : (sum / count);
 }
 
 // calculate elapsed days and weeks from defined unix timestamp
@@ -839,174 +742,6 @@ void addReading(float temp, float hum, float vpd) {
   if (count < NUM_VALUES) {
     count++;
   }
-}
-
-// Averages
-float avgTemp() {
-  if (count == 0) return 0.0f;
-  return sumTemp / count;
-}
-
-float avgHum() {
-  if (count == 0) return 0.0f;
-  return sumHum / count;
-}
-
-float avgVPD() {
-  if (count == 0) return 0.0f;
-  return sumVPD / count;
-}
-
-float avgWaterTemp() {
-  if (count == 0) return 0.0f;
-  return sumWaterTemp / count;
-}
-
-// Read sensor temperature, humidity and vpd and DS18B20 water temperature
-String readSensorData() {
-  // read DS18B20 water temperature if enabled
-  if (DS18B20) {
-    sensors.requestTemperatures();
-    float dsTemp = sensors.getTempCByIndex(0);
-    // only update global water temp if valid
-    if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
-      DS18B20STemperature = dsTemp;
-    } else {
-      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
-    }
-  }
-  
-  // we will ALWAYS return valid JSON, even if BME not available or not time yet
-  unsigned long now = millis();
-  struct tm timeinfo;
-  char timeStr[32] = "";
-  if (getLocalTime(&timeinfo)) {
-    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
-  }
-
-  // toggle status LED as before
-  if (bmeAvailable) {
-    if (now - previousMillis >= blinkInterval) {
-      previousMillis = now;
-      ledState = !ledState;
-      digitalWrite(STATUS_LED_PIN, ledState);
-    }
-
-    // time to read fresh BME values?
-    if (now - lastRead >= READ_INTERVAL_MS) {
-      lastRead = now;
-
-      lastTemperature = bme.readTemperature();
-      lastHumidity    = bme.readHumidity();
-      lastVPD         = calcVPD(lastTemperature, offsetLeafTemperature, lastHumidity);
-
-      // log every 60s if valid
-      if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
-        appendLog(now, lastTemperature, lastHumidity, lastVPD);
-        lastLog = now;
-        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
-      }
-
-      // compact hourly
-      static unsigned long lastCompact = 0;
-      if (now - lastCompact >= COMPACT_EVERY_MS) {
-        compactLog();  // keeps only the last 48 hours
-        lastCompact = now;
-        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
-      }
-
-      // hier könntest du auch deine "addReading(...)" für die 1h-Mittel aufrufen
-      // z.B.: addReading(lastTemperature, lastHumidity, lastVPD, DS18B20STemperature);
-    }
-  }
-
-  // === JSON BUILDING (always) ===
-  String json = "{\n";
-  // ---- current readings ----
-  if (!isnan(curPhase)) {
-    json += "\"curGrowPhase\":" + String(curPhase) + ",\n";
-  } else {
-    json += "\"curGrowPhase\":null,\n";
-  } 
-  if (!isnan(lastTemperature)) {
-    json += "\"curTemperature\":" + String(lastTemperature, 1) + ",\n";
-  } else {
-    json += "\"curTemperature\":null,\n";
-  } 
-  if (!isnan(DS18B20STemperature)) {
-    json += "\"cur" + DS18B20Name + "\":" + String(DS18B20STemperature, 1) + ",\n";
-  } else {
-    json += "\"cur" + DS18B20Name + "\":null,\n";
-  }
-  if (!isnan(lastHumidity)) {
-    json += "\"curHumidity\":" + String(lastHumidity, 0) + ",\n";
-  } else {
-    json += "\"curHumidity\":null,\n";
-  }
-  if (!isnan(lastVPD)) {
-    json += "\"curVpd\":" + String(lastVPD, 1) + ",\n";
-  } else {
-    json += "\"curVpd\":null,\n";
-  }
-  if (!isnan(irrigationRuns)) {
-    json += "\"curIrrigationRuns\":" + String(irrigationRuns) + ",\n";
-  } else {
-    json += "\"curIrrigationRuns\":null,\n";
-  }
-  if (!isnan(tankLevel)) {
-    json += "\"curTankLevel\":" + String(tankLevel, 0) + ",\n";
-  } else {
-    json += "\"curTankLevel\":null,\n";
-  }
-  if (!isnan(tankLevelCm)) {
-    json += "\"curTankLevelDistance\":" + String(tankLevelCm, 0) + ",\n";
-  } else {
-    json += "\"curTankLevelDistance\":null,\n";
-  }
-  if (wTimeLeft.length() > 0) {
-    json += "\"curTimeLeftIrrigation\":\"" + String(wTimeLeft) +  "\",\n";
-  } else {
-    json += "\"curTimeLeftIrrigation\":null,\n";
-  }
-  if (!isnan(avgTemp())) {
-    json += "\"avgTemperature\":" + String(avgTemp(), 1)  + ",\n";
-  } else {
-    json += "\"avgTemperature\":null,\n";
-  }
-  if (!isnan(avgWaterTemp())) {
-    json += "\"avg" + DS18B20Name + "\":" + String(avgWaterTemp(), 1) + ",\n";
-  } else {
-    json += "\"avg" + DS18B20Name + "\":null,\n";
-  }
-  if (!isnan(avgHum())) {
-    json += "\"avgHumidity\":" + String(avgHum(), 0) + ",\n";
-  } else {
-    json += "\"avgHumidity\":null,\n";
-  }
-  if (!isnan(avgVPD())) {
-    json += "\"avgVpd\":" + String(avgVPD(), 1) + ",\n";
-  } else {
-    json += "\"avgVpd\":null,\n";
-  }
-
-  // ---- relays ----
-  // returns e.g. "relays":[true,false,true,false]
-  json += "\"relays\":[";
-  for (int i = 0; i < NUM_RELAYS; i++) {
-    int state = digitalRead(relayPins[i]); // depends on your wiring (LOW=on or HIGH=on)
-    // here we assume HIGH=on
-    bool on = (state == HIGH);
-    json += (on ? "true" : "false");
-    if (i < NUM_RELAYS - 1) json += ",";
-  }
-  json += "],\n";
-
-  // captured time
-  json += "\"captured\":\"" + String(timeStr)  + "\"\n";
-
-  json += "}";
-
-  return json;
 }
 
 // check HCSR04 sensor
@@ -1343,139 +1078,462 @@ bool sendGotify(const String& msg, const String& title, int priority) {
   
 }
 
-// Helper: make base URL from ShellyDevice (with IPv6 handling)
-static String makeBaseUrl(const ShellyDevice& d) {
-  String h = d.host;
+// =======================
+// URL HELPERS
+// =======================
 
-  // Wenn es nach IPv6 aussieht (enthält ":"), und nicht schon [ ] hat → klammern
-  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
-    h = "[" + h + "]";
-  }
-
-  String url = "http://" + h;
-  if (d.port != 80) url += ":" + String(d.port);
-  return url;
+// Build base URL without credentials (safe for logging)
+static String makeBaseUrl(const String& host, uint16_t port) {
+  String u = "http://" + host;
+  if (port != 80) u += ":" + String(port);
+  return u;
 }
 
-// Helper: remove [ ] from host if present
-static String stripBrackets(String h) {
-  h.trim();
-  if (h.startsWith("[") && h.endsWith("]")) {
-    h = h.substring(1, h.length() - 1);
+// =======================
+// HASH HELPERS (Digest)
+// =======================
+
+// Compute hash (MD5/SHA-256) and return lowercase hex
+static String hashHex(mbedtls_md_type_t mdType, const String& s) {
+  const mbedtls_md_info_t* info = mbedtls_md_info_from_type(mdType);
+  if (!info) return "";
+
+  unsigned char out[64];
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, info, 0);
+  mbedtls_md_starts(&ctx);
+  mbedtls_md_update(&ctx, (const unsigned char*)s.c_str(), s.length());
+  mbedtls_md_finish(&ctx, out);
+  mbedtls_md_free(&ctx);
+
+  const size_t outLen = mbedtls_md_get_size(info);
+  static const char* hex = "0123456789abcdef";
+  String res;
+  res.reserve(outLen * 2);
+  for (size_t i = 0; i < outLen; i++) {
+    res += hex[(out[i] >> 4) & 0xF];
+    res += hex[out[i] & 0xF];
   }
+  return res;
+}
+
+static String toLowerCopy(String s) { s.toLowerCase(); return s; }
+
+// Extract parameter value from Digest header, supports:
+// key="value"  OR  key=value
+static String digestParam(const String& header, const String& key) {
+  String h = header;
+  h.trim();
+  String hl = toLowerCopy(h);
+
+  String kl = key;
+  kl.trim();
+  kl.toLowerCase();
+
+  int p = hl.indexOf(kl + "=");
+  if (p < 0) return "";
+
+  p += kl.length() + 1; // skip "key="
+  if (p >= h.length()) return "";
+
+  // quoted value
+  if (h[p] == '"') {
+    p++;
+    int e = h.indexOf('"', p);
+    if (e < 0) return "";
+    return h.substring(p, e);
+  }
+
+  // unquoted value until comma
+  int e = h.indexOf(',', p);
+  if (e < 0) e = h.length();
+  String v = h.substring(p, e);
+  v.trim();
+  return v;
+}
+
+static String makeCnonce() {
+  // Simple pseudo-random cnonce, good enough for LAN usage
+  uint32_t r1 = (uint32_t)esp_random();
+  uint32_t r2 = (uint32_t)esp_random();
+  char buf[17];
+  snprintf(buf, sizeof(buf), "%08lx%08lx", (unsigned long)r1, (unsigned long)r2);
+  return String(buf);
+}
+
+// Build Digest Authorization header for RFC7616 (SHA-256) and MD5 (fallback)
+// Supports "-sess" variants as well.
+static String buildDigestAuth(const String& wwwAuth,
+                              const String& user,
+                              const String& pass,
+                              const String& method,
+                              const String& uri) {
+  String realm  = digestParam(wwwAuth, "realm");
+  String nonce  = digestParam(wwwAuth, "nonce");
+  String qop    = digestParam(wwwAuth, "qop");
+  String opaque = digestParam(wwwAuth, "opaque");
+  String alg    = digestParam(wwwAuth, "algorithm"); // e.g. SHA-256, SHA-256-sess, MD5
+
+  if (realm.length() == 0 || nonce.length() == 0) return "";
+
+  bool sess = false;
+  String algLower = toLowerCopy(alg);
+  if (algLower.endsWith("-sess")) {
+    sess = true;
+    algLower.replace("-sess", "");
+  }
+
+  mbedtls_md_type_t mdType = MBEDTLS_MD_MD5;
+  if (algLower == "sha-256") mdType = MBEDTLS_MD_SHA256;
+  else if (algLower == "md5" || algLower.length() == 0) mdType = MBEDTLS_MD_MD5;
+
+  // Prefer qop=auth if offered
+  String qopUse = (toLowerCopy(qop).indexOf("auth") >= 0) ? "auth" : "";
+
+  String nc = "00000001";
+  String cnonce = makeCnonce();
+
+  // HA1 = H(user:realm:pass)
+  String ha1 = hashHex(mdType, user + ":" + realm + ":" + pass);
+  // HA1-sess = H(HA1:nonce:cnonce)
+  if (sess) {
+    ha1 = hashHex(mdType, ha1 + ":" + nonce + ":" + cnonce);
+  }
+
+  // HA2 = H(method:uri)
+  String ha2 = hashHex(mdType, method + ":" + uri);
+
+  // response
+  String resp;
+  if (qopUse.length()) {
+    resp = hashHex(mdType, ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":" + qopUse + ":" + ha2);
+  } else {
+    resp = hashHex(mdType, ha1 + ":" + nonce + ":" + ha2);
+  }
+
+  // Build header line
+  String h = "Authorization: Digest ";
+  h += "username=\"" + user + "\", ";
+  h += "realm=\"" + realm + "\", ";
+  h += "nonce=\"" + nonce + "\", ";
+  h += "uri=\"" + uri + "\", ";
+  if (alg.length()) h += "algorithm=" + alg + ", ";
+
+  if (qopUse.length()) {
+    h += "response=\"" + resp + "\", ";
+    h += "qop=" + qopUse + ", ";
+    h += "nc=" + nc + ", ";
+    h += "cnonce=\"" + cnonce + "\", ";
+  } else {
+    h += "response=\"" + resp + "\", ";
+  }
+
+  if (opaque.length()) h += "opaque=\"" + opaque + "\", ";
+
+  if (h.endsWith(", ")) h.remove(h.length() - 2);
+  h += "\r\n";
   return h;
 }
 
-// Detect host type: "IPv4", "IPv6", "DNS"
-String detectHostType(const String& hostInput) {
-  String h = hostInput;
-  h.trim();
+// =======================
+// HTTP HELPERS
+// =======================
 
-  // [IPv6] → IPv6
-  if (h.startsWith("[") && h.endsWith("]")) {
-    h = h.substring(1, h.length() - 1);
-  }
+// Fetch WWW-Authenticate header using HTTPClient (no auth).
+// This is used to discover whether the device requires Digest or Basic.
+static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& outCode) {
+  outWwwAuth = "";
+  outCode = -1;
 
-  // IPv4?
-  IPAddress ip4;
-  if (ip4.fromString(h)) {
-    return "IPv4";
-  }
-
-  // IPv6? Heuristic: IPv6 literals contain multiple ':' characters (portable fallback)
-  int colonCount = 0;
-  for (unsigned int i = 0; i < h.length(); ++i) {
-    if (h.charAt(i) == ':') ++colonCount;
-  }
-  if (colonCount >= 2) {
-    return "IPv6";
-  }
-
-  // sonst: DNS / Hostname
-  return "DNS";
-}
-
-// HTTP GET JSON from Shelly device
-static bool httpGetJson(const ShellyDevice& d, const String& path, JsonDocument& doc) {
   HTTPClient http;
-  const String url = makeBaseUrl(d) + path;
+  http.setTimeout(4000);
+  http.useHTTP10(true);
 
-  http.begin(url);
-  if (d.User.length()) http.setAuthorization(d.User.c_str(), d.Pass.c_str());
+  const char* keys[] = {"WWW-Authenticate"};
+  http.collectHeaders(keys, 1);
+
+  if (!http.begin(url)) return false;
 
   int code = http.GET();
-  if (code <= 0) { http.end(); return false; }
+  outCode = code;
 
-  String body = http.getString();
-  http.end();
-
-  return deserializeJson(doc, body) == DeserializationError::Ok;
-}
-
-// Get values from Shelly device
-ShellyValues getShellyValues(
-  const String& host,     // IPv4 / IPv6 / DNS
-  uint8_t gen,            // 1 = Gen1, 2 = Gen2/Gen3
-  uint8_t switchId = 0,
-  uint16_t port = 80,
-  const String& user = "",
-  const String& pass = ""
-) {
-  ShellyValues v;
-
-  // --- Host normalisieren (IPv6 → [ ])
-  String h = host;
-  h.trim();
-  if (h.indexOf(':') >= 0 && !(h.startsWith("[") && h.endsWith("]"))) {
-    h = "[" + h + "]";
+  if (code == 401) {
+    outWwwAuth = http.header("WWW-Authenticate");
   }
 
-  String baseUrl = "http://" + h;
-  if (port != 80) baseUrl += ":" + String(port);
+  http.end();
+  return true;
+}
 
+// Read the complete HTTP response (status line + headers + body)
+static bool readAllFromClient(WiFiClient& client, String& outRaw) {
+  outRaw = "";
+  unsigned long start = millis();
+
+  // Wait for first bytes (up to 2s)
+  while (!client.available() && client.connected() && (millis() - start) < 2000) {
+    delay(5);
+  }
+
+  // Read until connection closes or timeout (4s max)
+  start = millis();
+  while ((client.connected() || client.available()) && (millis() - start) < 4000) {
+    while (client.available()) {
+      outRaw += client.readString();
+      start = millis(); // reset timeout while data arrives
+    }
+    delay(5);
+  }
+
+  return outRaw.length() > 0;
+}
+
+// Parse HTTP status code and body from a raw response string
+static bool parseHttpResponse(const String& raw, int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  int sep = raw.indexOf("\r\n\r\n");
+  if (sep < 0) sep = raw.indexOf("\n\n");
+  if (sep < 0) {
+    // No headers found, treat everything as body
+    outBody = raw;
+    return true;
+  }
+
+  String head = raw.substring(0, sep);
+  outBody = raw.substring(sep + ((raw[sep] == '\r') ? 4 : 2));
+
+  // Status line is first header line
+  int lineEnd = head.indexOf("\r\n");
+  if (lineEnd < 0) lineEnd = head.indexOf('\n');
+  String statusLine = (lineEnd >= 0) ? head.substring(0, lineEnd) : head;
+  statusLine.trim();
+
+  int sp1 = statusLine.indexOf(' ');
+  int sp2 = statusLine.indexOf(' ', sp1 + 1);
+  if (sp1 > 0 && sp2 > sp1) {
+    outCode = statusLine.substring(sp1 + 1, sp2).toInt();
+  }
+
+  return true;
+}
+
+// Low-level GET using WiFiClient, with optional Authorization header line.
+static bool rawHttpGet(const String& host, uint16_t port, const String& path,
+                       const String& authHeaderLine,
+                       int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  WiFiClient client;
+  client.setTimeout(4); // seconds
+
+  if (!client.connect(host.c_str(), port)) {
+    return false;
+  }
+
+  String p = path;
+  if (!p.startsWith("/")) p = "/" + p;
+
+  // Use HTTP/1.0 to avoid chunked transfer encoding
+  String req =
+    "GET " + p + " HTTP/1.0\r\n"
+    "Host: " + host + "\r\n" +
+    authHeaderLine +
+    "Connection: close\r\n\r\n";
+
+  client.print(req);
+
+  String raw;
+  bool ok = readAllFromClient(client, raw);
+  client.stop();
+  if (!ok) return false;
+
+  parseHttpResponse(raw, outCode, outBody);
+  return true;
+}
+
+// Auto-auth GET: first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
+static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const String& path,
+                                      const String& user, const String& pass,
+                                      int& outCode, String& outBody) {
+  outCode = -1;
+  outBody = "";
+
+  // Discover auth scheme (no credentials sent here)
+  String url = makeBaseUrl(host, port) + path;
+  String www;
+  int firstCode = -1;
+
+  if (!fetchWwwAuthenticate(url, www, firstCode)) {
+    return false;
+  }
+
+  // If endpoint is open (200), just request without auth
+  if (firstCode == 200) {
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  // If unauthorized, decide scheme
+  if (firstCode != 401) {
+    // Unexpected (404, 500, etc.). Still try without auth to get body.
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  String wwwLower = toLowerCopy(www);
+
+  if (wwwLower.startsWith("digest")) {
+    // Build Digest Authorization header
+    String digestLine = buildDigestAuth(www, user, pass, "GET", path);
+    if (digestLine.length() == 0) return false;
+    return rawHttpGet(host, port, path, digestLine, outCode, outBody);
+  }
+
+  // Basic auth (rare with Shelly Gen2/3 but supported sometimes)
+  if (wwwLower.startsWith("basic")) {
+    // We'll avoid putting credentials in logs; we only build the header
+    // NOTE: If you need Basic, you can implement base64 header here.
+    // Many Shelly Gen2/3 use Digest, so this branch is typically not needed.
+    return false;
+  }
+
+  return false;
+}
+
+// =======================
+// SIMPLE IP VALIDATION
+// =======================
+static bool hasValidIPv4(const String& ip) {
+  IPAddress tmp;
+  return ip.length() > 0 && tmp.fromString(ip);
+}
+
+// =======================
+// SIMPLE HTTP GET FOR GEN1 DEVICES (BASIC AUTH)
+// =======================
+static bool httpGetGen1(
+  const String& host, int port, const String& path,
+  const String& user, const String& pass,
+  int& code, String& body
+) {
+  WiFiClient client;
   HTTPClient http;
-  String url;
 
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  DynamicJsonDocument doc(2048);
-  #pragma GCC diagnostic pop
+  http.setTimeout(2000); // Gen1 braucht manchmal etwas länger
+  http.setReuse(false);
 
-  // --- Gen1
-  if (gen == 1) {
-    url = baseUrl + "/status";
-    http.begin(url);
-    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
+  String url = "http://" + host + ":" + String(port) + path;
 
-    if (http.GET() <= 0) { http.end(); return v; }
+  if (!http.begin(client, url)) {
+    code = -1;
+    return false;
+  }
 
-    String body = http.getString();
-    http.end();
-    if (deserializeJson(doc, body)) return v;
+  // Nur wenn user gesetzt ist (sonst schickst du leere Auth-Header)
+  if (user.length() > 0) {
+    http.setAuthorization(user.c_str(), pass.c_str());  // Basic Auth
+  }
 
+  code = http.GET();
+  if (code > 0) body = http.getString();
+
+  http.end();
+  return (code >= 200 && code < 300);
+}
+
+// =======================
+// MAIN: GET VALUES
+// =======================
+ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80) {
+  ShellyValues v; // default ok=false
+
+  // IP prüfen
+  if (!hasValidIPv4(dev.ip)) {
+    logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'");
+    return v;
+  }
+
+  String path = (dev.gen == 1)
+    ? "/status"
+    : ("/rpc/Switch.GetStatus?id=" + String(switchId));
+
+  int code = 0;
+  String body;
+  bool ok = false;
+
+  if (dev.gen == 1) {
+    ok = httpGetGen1(dev.ip, port, path,
+                    settings.shelly.username, settings.shelly.password,
+                    code, body);
+  } else {
+    ok = httpGetWithDigestAutoAuth(dev.ip, port, path,
+                                  settings.shelly.username, settings.shelly.password,
+                                  code, body);
+  }
+
+  if (!ok) {
+    logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
+    if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200));
+    return v;
+  }
+
+  // JSON parsen (Gen1 /status kann etwas größer sein)
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    logPrint("[SHELLY] JSON parse error: " + String(err.c_str()));
+    return v;
+  }
+
+  if (dev.gen == 1) {
+    // Plug S Gen1: relays[0].ison, meters[0].power, meters[0].total
     v.isOn     = doc["relays"][switchId]["ison"] | false;
     v.powerW   = doc["meters"][switchId]["power"] | NAN;
     v.energyWh = doc["meters"][switchId]["total"] | NAN;
-  }
-  // --- Gen2 / Gen3
-  else {
-    url = baseUrl + "/rpc/Switch.GetStatus?id=" + String(switchId);
-    http.begin(url);
-    if (user.length()) http.setAuthorization(user.c_str(), pass.c_str());
-
-    if (http.GET() <= 0) { http.end(); return v; }
-
-    String body = http.getString();
-    http.end();
-    if (deserializeJson(doc, body)) return v;
-
+  } else {
     v.isOn     = doc["output"] | false;
     v.powerW   = doc["apower"] | NAN;
-    v.voltageV = doc["voltage"] | NAN;
-    v.currentA = doc["current"] | NAN;
     v.energyWh = doc["aenergy"]["total"] | NAN;
   }
 
   v.ok = true;
+  dev.values = v;
   return v;
+}
+
+// =======================
+// Uses the same Digest auto-auth mechanism.
+// =======================
+static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t switchId = 0, uint16_t port = 80) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  String path;
+  if (gen == 1) {
+    path = "/relay/" + String(switchId) + "?turn=" + String(on ? "on" : "off");
+  } else {
+    path = "/rpc/Switch.Set?id=" + String(switchId) + "&on=" + String(on ? "true" : "false");
+  }
+
+  logPrint("[SHELLY] SET " + host + ":" + String(port) + " " + path);
+
+  int code = -1;
+  String body;
+
+  bool ok = httpGetWithDigestAutoAuth(host, port, path,
+                                     settings.shelly.username,
+                                     settings.shelly.password,
+                                     code, body);
+  logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
+  return ok && (code == 200);
+}
+
+static bool shellySwitchOn(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
+  return shellySwitchSet(host, gen, true, switchId, port);
+}
+
+static bool shellySwitchOff(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
+  return shellySwitchSet(host, gen, false, switchId, port);
 }
