@@ -11,8 +11,9 @@
 #include <WiFiClientSecure.h>
 #include <IPAddress.h>
 #include <HTTPClient.h>
-#include <base64.h>
 #include <mbedtls/md.h>
+// Base64 (for Basic auth) via mbedTLS (available in ESP32 Arduino core)
+#include <mbedtls/base64.h>
 
 // global, functions, html code, js code and css code includes
 #include "globals.h"
@@ -27,6 +28,9 @@ struct ShellyDevice;
 struct ShellyValues;
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80);
 static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId, uint16_t port);
+
+// Called early (e.g. from handleNewGrow) but implemented further below.
+static bool applyGrowLightSchedule();
 
 #endif
 
@@ -1511,60 +1515,134 @@ static bool rawHttpRequest(const String& method,
 }
 
 // Auto-auth request (GET/POST): first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
+static bool parseHttpUrl(const String& url, String& host, uint16_t& port, String& path) {
+  String u = url;
+  u.trim();
+  if (u.startsWith("http://")) {
+    u.remove(0, 7);
+    port = 80;
+  } else if (u.startsWith("https://")) {
+    // NOTE: raw WiFiClient (no TLS) can't handle https. Use http on Shelly LAN.
+    u.remove(0, 8);
+    port = 443;
+  } else {
+    port = 80;
+  }
+
+  int slash = u.indexOf('/');
+  String hostPort = (slash >= 0) ? u.substring(0, slash) : u;
+  path = (slash >= 0) ? u.substring(slash) : "/";
+
+  int colon = hostPort.indexOf(':');
+  if (colon >= 0) {
+    host = hostPort.substring(0, colon);
+    port = (uint16_t) hostPort.substring(colon + 1).toInt();
+  } else {
+    host = hostPort;
+  }
+
+  host.trim();
+  if (host.length() == 0) return false;
+  if (path.length() == 0) path = "/";
+  return true;
+}
+
+static String buildBasicAuthHeaderLine(const String& user, const String& pass) {
+  // mbedTLS base64 encoder (avoid dependency on non-standard Arduino base64 libs)
+  const String token = user + ":" + pass;
+
+  // Base64 length: 4 * ceil(n/3) + 1 for NUL
+  const size_t inLen  = (size_t)token.length();
+  const size_t outCap = 4 * ((inLen + 2) / 3) + 1;
+  unsigned char* out = (unsigned char*)malloc(outCap);
+  if (!out) return "";
+
+  size_t outLen = 0;
+  const int rc = mbedtls_base64_encode(out, outCap, &outLen,
+                                      (const unsigned char*)token.c_str(), inLen);
+  if (rc != 0) {
+    free(out);
+    return "";
+  }
+  out[outLen] = 0;
+
+  String line = "Authorization: Basic " + String((const char*)out) + "\r\n";
+  free(out);
+  return line;
+}
+
 static bool httpRequestWithDigestAutoAuth(const String& method,
                                           const String& host, uint16_t port,
                                           const String& path,
                                           const String& user, const String& pass,
                                           const String& contentType,
                                           const String& body,
-                                          int& outCode, String& outBody) {
-  outCode = -1;
-  outBody = "";
-
-  // First request without auth to retrieve challenge
-  int code0 = -1;
-  String body0;
-
-  // For the first call we don't send a body. Most devices respond 401 and include WWW-Authenticate.
-  rawHttpRequest(method, host, port, path, "", contentType, (method=="GET"?String(""):body), code0, body0);
-
-  // BASIC (some firmware uses basic auth)
-  if (body0.indexOf("WWW-Authenticate: Basic") >= 0 || body0.indexOf("WWW-Authenticate: basic") >= 0) {
-    String basic = base64::encode(user + ":" + pass);
-    String authLine = "Authorization: Basic " + basic + "\r\n";
-    return rawHttpRequest(method, host, port, path, authLine, contentType, body, outCode, outBody);
+                                          int& outCode,
+                                          String& outBody,
+                                          uint32_t timeoutMs = 4000) {
+  // 1) Try without auth first
+  if (rawHttpRequest(method, host, port, path, "", contentType, body, outCode, outBody)) {
+    if (outCode != 401) return (outCode >= 200 && outCode < 300);
   }
 
-  // Digest
-  String www = extractWwwAuthenticate(body0);
-  if (www.length() == 0) {
-    // No auth required?
-    outCode = code0;
-    outBody = body0;
-    return true;
+  // 2) Ask for WWW-Authenticate via lightweight GET
+  String www;
+  const String url = String("http://") + host + ":" + String(port) + path;
+  if (!fetchWwwAuthenticate(url, www, outCode)) return false;
+
+  if (outCode != 401 || www.length() == 0) {
+    // Not an auth challenge (or server didn't include header)
+    return (outCode >= 200 && outCode < 300);
   }
 
-  DigestParams dp;
-  if (!parseDigestParams(www, dp)) {
-    outCode = code0;
-    outBody = body0;
-    return true;
+  // 3) Build auth header line
+  String authLine;
+  if (www.startsWith("Digest")) {
+    authLine = buildDigestAuth(www, user, pass, method, path); // already includes \r\n
+  } else if (www.startsWith("Basic")) {
+    authLine = buildBasicAuthHeaderLine(user, pass);
+  } else {
+    Serial.println("[SHELLY][AUTH] Unsupported auth scheme: " + www);
+    return false;
   }
 
-  // nc/cnonce
-  static uint32_t _nc = 1;
-  String nc = String(_nc++, HEX);
-  while (nc.length() < 8) nc = "0" + nc;
-  String cnonce = String((uint32_t)esp_random(), HEX);
-
-  String uri = path;
-  if (!uri.startsWith("/")) uri = "/" + uri;
-
-  String authHeader = buildDigestAuthHeader(user, pass, method, uri, dp, nc, cnonce);
-  String authLine = "Authorization: " + authHeader + "\r\n";
-
+  // 4) Retry with auth header
   return rawHttpRequest(method, host, port, path, authLine, contentType, body, outCode, outBody);
 }
+
+// Convenience wrapper used by schedule code (URL-based POST)
+static bool httpPostWithDigestAutoAuth(const String& host, uint16_t port,
+                                      const String& path,
+                                      const String& payload,
+                                      const String& user,
+                                      const String& pass,
+                                      int& outCode,
+                                      String& outBody,
+                                      uint32_t timeoutMs = 4000) {
+  return httpRequestWithDigestAutoAuth("POST", host, port, path, user, pass,
+                                      "application/json", payload,
+                                      outCode, outBody, timeoutMs);
+}
+
+static bool httpPostWithDigestAutoAuth(const String& url,
+                                      const String& payload,
+                                      const String& contentType,
+                                      String& outResp,
+                                      uint32_t timeoutMs,
+                                      const String& user,
+                                      const String& pass) {
+  String host, path;
+  uint16_t port = 80;
+  if (!parseHttpUrl(url, host, port, path)) return false;
+
+  int code = 0;
+  String body;
+  const bool ok = httpRequestWithDigestAutoAuth("POST", host, port, path, user, pass,
+                                               contentType, payload, code, body, timeoutMs);
+  outResp = body;
+  return ok;
+}
+
 // Auto-auth GET: first fetch WWW-Authenticate, then perform Digest/BASIC accordingly
 static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const String& path,
                                       const String& user, const String& pass,
@@ -1895,4 +1973,48 @@ static bool applyShellyLightSchedule(const String& onTimeHHMM, int dayHours){
   Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen2 Create OFF %s status=%d ok=%d\n", offTime.c_str(), status, (int)ok2);
 
   return okDel && ok1 && ok2;
+}
+
+// Apply the configured growlight schedule to the Shelly "light" device.
+// Uses:
+//   - settings.grow.lightOnTime  ("HH:MM")
+//   - settings.grow.lightDayHours (1..20)
+// Derives OFF time = ON + dayHours (wrap around midnight).
+static bool applyGrowLightSchedule() {
+  // must have device configured
+  if (settings.shelly.light.ip.length() == 0) {
+    Serial.println("[SHELLY][LIGHT][SCHEDULE] No IP configured -> skip");
+    return false;
+  }
+
+  // basic validation of on-time
+  String on = settings.grow.lightOnTime;
+  on.trim();
+  int h = -1, m = -1;
+  if (on.length() >= 4) {
+    const int colon = on.indexOf(':');
+    if (colon > 0) {
+      h = on.substring(0, colon).toInt();
+      m = on.substring(colon + 1).toInt();
+    }
+  }
+  if (h < 0 || h > 23 || m < 0 || m > 59) {
+    Serial.printf("[SHELLY][LIGHT][SCHEDULE] Invalid onTime '%s'\n", on.c_str());
+    return false;
+  }
+
+  int dayHours = (int)settings.grow.lightDayHours;
+  if (dayHours < 1) dayHours = 1;
+  if (dayHours > 20) dayHours = 20;
+
+  const int totalOnMin  = h * 60 + m;
+  const int totalOffMin = (totalOnMin + dayHours * 60) % (24 * 60);
+  const int offH = totalOffMin / 60;
+  const int offM = totalOffMin % 60;
+  char offBuf[6];
+  snprintf(offBuf, sizeof(offBuf), "%02d:%02d", offH, offM);
+  String off = String(offBuf);
+
+  Serial.printf("[SHELLY][LIGHT][SCHEDULE] Apply %s -> %s (%dh)\n", on.c_str(), off.c_str(), dayHours);
+  return applyShellyLightSchedule(on, dayHours);
 }
