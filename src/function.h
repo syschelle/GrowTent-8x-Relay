@@ -1549,7 +1549,7 @@ static bool httpGetGen1(
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   ShellyValues v; // default ok=false
 
-  // IP prüfen
+  // Validate IP
   if (!hasValidIPv4(dev.ip)) {
     logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'");
     return v;
@@ -1565,12 +1565,12 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
   if (dev.gen == 1) {
     ok = httpGetGen1(dev.ip, port, path,
-                    settings.shelly.username, settings.shelly.password,
-                    code, body);
+                     settings.shelly.username, settings.shelly.password,
+                     code, body);
   } else {
     ok = httpGetWithDigestAutoAuth(dev.ip, port, path,
-                                  settings.shelly.username, settings.shelly.password,
-                                  code, body);
+                                   settings.shelly.username, settings.shelly.password,
+                                   code, body);
   }
 
   if (!ok) {
@@ -1580,7 +1580,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     return v;
   }
 
-  // JSON parsen (Gen1 /status kann etwas größer sein)
+  // Parse JSON (Gen1 /status can be bigger)
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
@@ -1601,6 +1601,127 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
   v.ok = true;
   dev.values = v;
+
+  // ------------------------------------------------------------
+  // EXTRA: Read schedules (Gen2+) via /rpc/Schedule.List
+  // Fills dev.schedules.days[0..6] with on/off hour+minute.
+  // Index: 0=MON ... 6=SUN
+  // Unset values are -1
+  // ------------------------------------------------------------
+  if (dev.gen >= 2) {
+
+    // Initialize schedules to "unset"
+    for (int i = 0; i < 7; i++) {
+      dev.schedules.days[i].onHour = -1;
+      dev.schedules.days[i].onMinute = -1;
+      dev.schedules.days[i].offHour = -1;
+      dev.schedules.days[i].offMinute = -1;
+    }
+
+    int scode = 0;
+    String sbody;
+
+    // Use existing digest auth helper (same credentials already available)
+    bool sok = httpGetWithDigestAutoAuth(dev.ip, port, "/rpc/Schedule.List",
+                                         settings.shelly.username, settings.shelly.password,
+                                         scode, sbody);
+
+    if (!sok) {
+      logPrint("[SHELLY] Schedule.List failed gen=" + String(dev.gen) +
+               " HTTP=" + String(scode) + " " + dev.ip + ":" + String(port));
+      if (sbody.length()) logPrint("[SHELLY] Schedule body(first200): " + sbody.substring(0, 200));
+      return v; // values are fine; schedules just stay unset
+    }
+
+    JsonDocument sdoc;
+    DeserializationError serr = deserializeJson(sdoc, sbody);
+    if (serr) {
+      logPrint("[SHELLY] Schedule JSON parse error: " + String(serr.c_str()));
+      return v; // values are fine; schedules just stay unset
+    }
+
+    // Convert "MON".."SUN" to index 0..6 (MON=0)
+    auto dayToIndex = [](const String& d) -> int {
+      if (d == "MON") return 0;
+      if (d == "TUE") return 1;
+      if (d == "WED") return 2;
+      if (d == "THU") return 3;
+      if (d == "FRI") return 4;
+      if (d == "SAT") return 5;
+      if (d == "SUN") return 6;
+      return -1;
+    };
+
+    JsonArray jobs = sdoc["jobs"].as<JsonArray>();
+    for (JsonObject job : jobs) {
+      if (!(job["enable"] | false)) continue;
+
+      String timespec = job["timespec"] | "";
+      if (timespec.length() == 0) continue;
+
+      // Expected cron-like format: "SEC MIN HOUR * * MON,TUE,..."
+      // We only extract minute + hour, and the weekday list.
+      int sp1 = timespec.indexOf(' ');
+      if (sp1 < 0) continue;
+      int sp2 = timespec.indexOf(' ', sp1 + 1);
+      if (sp2 < 0) continue;
+      int sp3 = timespec.indexOf(' ', sp2 + 1);
+      if (sp3 < 0) continue;
+
+      int minute = timespec.substring(sp1 + 1, sp2).toInt();
+      int hour   = timespec.substring(sp2 + 1, sp3).toInt();
+
+      // Weekday part is typically after the last space
+      int lastSp = timespec.lastIndexOf(' ');
+      if (lastSp < 0) continue;
+      String daysPart = timespec.substring(lastSp + 1); // "MON,TUE,..."
+      daysPart.trim();
+      if (daysPart.length() == 0) continue;
+
+      // Evaluate all calls; we care only about Switch.Set for this switchId
+      JsonArray calls = job["calls"].as<JsonArray>();
+      for (JsonObject c : calls) {
+        String method = c["method"] | "";
+        if (method != "Switch.Set") continue;
+
+        int cid = c["params"]["id"] | -1;
+        if (cid != switchId) continue;
+
+        bool on = c["params"]["on"] | false;
+
+        // Split weekday list and set schedule values
+        int from = 0;
+        while (from < daysPart.length()) {
+          int comma = daysPart.indexOf(',', from);
+          String token = (comma == -1)
+                           ? daysPart.substring(from)
+                           : daysPart.substring(from, comma);
+          token.trim();
+
+          int di = dayToIndex(token);
+          if (di >= 0) {
+            if (on) {
+              // First matching ON time wins
+              if (dev.schedules.days[di].onHour < 0) {
+                dev.schedules.days[di].onHour = hour;
+                dev.schedules.days[di].onMinute = minute;
+              }
+            } else {
+              // First matching OFF time wins
+              if (dev.schedules.days[di].offHour < 0) {
+                dev.schedules.days[di].offHour = hour;
+                dev.schedules.days[di].offMinute = minute;
+              }
+            }
+          }
+
+          if (comma == -1) break;
+          from = comma + 1;
+        }
+      }
+    }
+  }
+
   return v;
 }
 
