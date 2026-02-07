@@ -2095,21 +2095,24 @@ async function fetchStateAndUpdateShellyUI(){
 function updateShellyInfoLinesFromState(s){
   try{
     const map = [
-      { id: 'shellyMainInfo',  key: 'main'  },
-      { id: 'shellyLightInfo', key: 'light' },
-      { id: 'shellyHeatInfo',  key: 'heat'  },
-      { id: 'shellyHumInfo',   key: 'hum'   },
-      { id: 'shellyFanInfo',   key: 'fan'   },
+      { ids: ['shellyMainInfo'],                         key: 'main'  },
+      { ids: ['shellyLightInfo'],                        key: 'light' },
+      // Some UIs use 'shellyHeatInfo', others 'shellyHeaterInfo'
+      { ids: ['shellyHeatInfo','shellyHeaterInfo'],      key: 'heat'  },
+      // Some UIs use 'shellyHumInfo', others 'shellyHumidifierInfo'
+      { ids: ['shellyHumInfo','shellyHumidifierInfo'],   key: 'hum'   },
+      { ids: ['shellyFanInfo'],                          key: 'fan'   },
     ];
 
     for (const it of map) {
-      const el = document.getElementById(it.id);
-      if (!el) continue;
+      const els = (it.ids || []).map(id => document.getElementById(id)).filter(Boolean);
+      if (!els.length) continue;
 
       const base = `settings.shelly.${it.key}`;
       const line = s[`${base}.line`];
+
       if (typeof line === 'string' && line.length) {
-        el.textContent = line;
+        for (const el of els) el.textContent = line;
         continue;
       }
 
@@ -2119,12 +2122,16 @@ function updateShellyInfoLinesFromState(s){
       const off = s[`${base}.off`];
 
       const hasAny = (ip != null || gen != null || on != null || off != null);
-      if (!hasAny) { el.textContent = '—'; continue; }
+      if (!hasAny) {
+        for (const el of els) el.textContent = '—';
+        continue;
+      }
 
       const genTxt = (gen === null || typeof gen === 'undefined') ? '—' : String(gen);
       const onTxt  = (on  === null || typeof on  === 'undefined') ? '—' : String(on);
       const offTxt = (off === null || typeof off === 'undefined') ? '—' : String(off);
-      el.textContent = `${ip || '—'} | Gen ${genTxt} | ON ${onTxt} | OFF ${offTxt}`;
+      const txt = `${ip || '—'} | Gen ${genTxt} | ON ${onTxt} | OFF ${offTxt}`;
+      for (const el of els) el.textContent = txt;
     }
   } catch(e) {}
 }
@@ -2190,44 +2197,13 @@ function initLightScheduleControls(){
 }
 
 // Prefill ON/OFF from /api/state (read-only device schedule).
-// If you later store settings, add:
-//   settings.shelly.light.desiredOn  (string "HH:MM")
-//   settings.shelly.light.dayHours   (number 12..23)
+// This uses /api/state values:
+//   settings.shelly.light.on  ("H:MM" or "HH:MM")
+//   settings.shelly.light.off ("H:MM" or "HH:MM")
 async function loadLightScheduleFromState(){
-    // Backward-compatible wrapper
+  try{
+    // This already updates Shelly info lines + Light schedule controls (if present).
     await fetchStateAndUpdateShellyUI();
-  }
-
-    // Future stored settings (optional)
-    const desiredOn = s['settings.shelly.light.desiredOn'];      // "HH:MM"
-    const dayHoursSetting = s['settings.shelly.light.dayHours']; // number 12..23
-
-    // Prefer stored desired settings if present
-    const chosenOn = (typeof desiredOn === 'string' && desiredOn.includes(':')) ? desiredOn : onStr;
-
-    if (typeof chosenOn === 'string' && chosenOn.includes(':')) {
-      onSel.value = chosenOn;
-    }
-
-    if (typeof dayHoursSetting === 'number' && isFinite(dayHoursSetting)) {
-      daySel.value = String(clampInt(dayHoursSetting, 12, 23));
-    } else if (typeof onStr === 'string' && typeof offStr === 'string') {
-      const onMin = parseHHMM(onStr);
-      const offMin = parseHHMM(offStr);
-      if (onMin != null && offMin != null) {
-        let diff = offMin - onMin;
-        if (diff <= 0) diff += 1440; // wrap midnight
-        const hours = Math.round(diff / 60);
-        daySel.value = String(clampInt(hours, 12, 23));
-      }
-    }
-
-    // Compute OFF from UI values (single source of truth for display)
-    const onMin2 = parseHHMM(onSel.value);
-    const dayHours2 = clampInt(daySel.value, 12, 23);
-    if (onMin2 != null) offInp.value = fmtHHMM((onMin2 + dayHours2 * 60) % 1440);
-    else offInp.value = '—';
-
   } catch (e) {
     console.warn('[SHELLY] loadLightScheduleFromState failed', e);
   }
