@@ -1589,11 +1589,12 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   }
 
   if (dev.gen == 1) {
-    // Plug S Gen1: relays[0].ison, meters[0].power, meters[0].total
+    // Gen1: relays[x].ison, meters[x].power, meters[x].total
     v.isOn     = doc["relays"][switchId]["ison"] | false;
     v.powerW   = doc["meters"][switchId]["power"] | NAN;
     v.energyWh = doc["meters"][switchId]["total"] | NAN;
   } else {
+    // Gen2+: Switch.GetStatus
     v.isOn     = doc["output"] | false;
     v.powerW   = doc["apower"] | NAN;
     v.energyWh = doc["aenergy"]["total"] | NAN;
@@ -1603,10 +1604,10 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   dev.values = v;
 
   // ------------------------------------------------------------
-  // EXTRA: Read schedules (Gen2+) via /rpc/Schedule.List
-  // Fills dev.schedules.days[0..6] with on/off hour+minute.
-  // Index: 0=MON ... 6=SUN
-  // Unset values are -1
+  // EXTRA: Read exactly one ON and one OFF schedule (Gen2+ only).
+  // Assumption: One ON time + one OFF time applies to every day.
+  // Fills dev.schedules.days[0..6] with identical times.
+  // Unset values are -1.
   // ------------------------------------------------------------
   if (dev.gen >= 2) {
 
@@ -1621,7 +1622,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     int scode = 0;
     String sbody;
 
-    // Use existing digest auth helper (same credentials already available)
+    // Use existing digest auth helper and existing credentials
     bool sok = httpGetWithDigestAutoAuth(dev.ip, port, "/rpc/Schedule.List",
                                          settings.shelly.username, settings.shelly.password,
                                          scode, sbody);
@@ -1630,27 +1631,20 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
       logPrint("[SHELLY] Schedule.List failed gen=" + String(dev.gen) +
                " HTTP=" + String(scode) + " " + dev.ip + ":" + String(port));
       if (sbody.length()) logPrint("[SHELLY] Schedule body(first200): " + sbody.substring(0, 200));
-      return v; // values are fine; schedules just stay unset
+      return v; // device values are fine; schedules stay unset
     }
 
     JsonDocument sdoc;
     DeserializationError serr = deserializeJson(sdoc, sbody);
     if (serr) {
       logPrint("[SHELLY] Schedule JSON parse error: " + String(serr.c_str()));
-      return v; // values are fine; schedules just stay unset
+      return v; // device values are fine; schedules stay unset
     }
 
-    // Convert "MON".."SUN" to index 0..6 (MON=0)
-    auto dayToIndex = [](const String& d) -> int {
-      if (d == "MON") return 0;
-      if (d == "TUE") return 1;
-      if (d == "WED") return 2;
-      if (d == "THU") return 3;
-      if (d == "FRI") return 4;
-      if (d == "SAT") return 5;
-      if (d == "SUN") return 6;
-      return -1;
-    };
+    bool haveOn = false;
+    bool haveOff = false;
+    int onHour = -1, onMinute = -1;
+    int offHour = -1, offMinute = -1;
 
     JsonArray jobs = sdoc["jobs"].as<JsonArray>();
     for (JsonObject job : jobs) {
@@ -1659,8 +1653,8 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
       String timespec = job["timespec"] | "";
       if (timespec.length() == 0) continue;
 
-      // Expected cron-like format: "SEC MIN HOUR * * MON,TUE,..."
-      // We only extract minute + hour, and the weekday list.
+      // Expected cron-like format: "SEC MIN HOUR * * ..."
+      // We only extract MIN and HOUR.
       int sp1 = timespec.indexOf(' ');
       if (sp1 < 0) continue;
       int sp2 = timespec.indexOf(' ', sp1 + 1);
@@ -1671,60 +1665,79 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
       int minute = timespec.substring(sp1 + 1, sp2).toInt();
       int hour   = timespec.substring(sp2 + 1, sp3).toInt();
 
-      // Weekday part is typically after the last space
-      int lastSp = timespec.lastIndexOf(' ');
-      if (lastSp < 0) continue;
-      String daysPart = timespec.substring(lastSp + 1); // "MON,TUE,..."
-      daysPart.trim();
-      if (daysPart.length() == 0) continue;
-
-      // Evaluate all calls; we care only about Switch.Set for this switchId
+      // Check calls: we only care about switch.set for this switchId
       JsonArray calls = job["calls"].as<JsonArray>();
       for (JsonObject c : calls) {
         String method = c["method"] | "";
-        if (method != "Switch.Set") continue;
+        String methodLower = method;
+        methodLower.toLowerCase();
+
+        // Shelly returns "switch.set" (lowercase) in Schedule.List
+        if (methodLower != "switch.set") continue;
 
         int cid = c["params"]["id"] | -1;
         if (cid != switchId) continue;
 
         bool on = c["params"]["on"] | false;
 
-        // Split weekday list and set schedule values
-        int from = 0;
-        while (from < daysPart.length()) {
-          int comma = daysPart.indexOf(',', from);
-          String token = (comma == -1)
-                           ? daysPart.substring(from)
-                           : daysPart.substring(from, comma);
-          token.trim();
-
-          int di = dayToIndex(token);
-          if (di >= 0) {
-            if (on) {
-              // First matching ON time wins
-              if (dev.schedules.days[di].onHour < 0) {
-                dev.schedules.days[di].onHour = hour;
-                dev.schedules.days[di].onMinute = minute;
-              }
-            } else {
-              // First matching OFF time wins
-              if (dev.schedules.days[di].offHour < 0) {
-                dev.schedules.days[di].offHour = hour;
-                dev.schedules.days[di].offMinute = minute;
-              }
-            }
-          }
-
-          if (comma == -1) break;
-          from = comma + 1;
+        // First ON and first OFF win
+        if (on && !haveOn) {
+          haveOn = true;
+          onHour = hour;
+          onMinute = minute;
+        } else if (!on && !haveOff) {
+          haveOff = true;
+          offHour = hour;
+          offMinute = minute;
         }
       }
+
+      // Stop early once both are found
+      if (haveOn && haveOff) break;
+    }
+
+    // Log if schedules are missing
+    if (!haveOn && !haveOff) {
+      logPrint("[SHELLY] Schedule: no ON/OFF time found for switchId=" + String(switchId) +
+               " on " + dev.ip + ":" + String(port));
+    } else if (!haveOn) {
+      logPrint("[SHELLY] Schedule: missing ON time for switchId=" + String(switchId) +
+               " on " + dev.ip + ":" + String(port));
+    } else if (!haveOff) {
+      logPrint("[SHELLY] Schedule: missing OFF time for switchId=" + String(switchId) +
+               " on " + dev.ip + ":" + String(port));
+    }
+
+    // Apply the same schedule to all days (and log what was applied)
+    if (haveOn || haveOff) {
+      for (int i = 0; i < 7; i++) {
+        if (haveOn) {
+          dev.schedules.days[i].onHour = onHour;
+          dev.schedules.days[i].onMinute = onMinute;
+        }
+        if (haveOff) {
+          dev.schedules.days[i].offHour = offHour;
+          dev.schedules.days[i].offMinute = offMinute;
+        }
+      }
+
+      // Build time strings with leading zeros for minutes
+      String onStr  = haveOn
+        ? (String(onHour)  + ":" + (onMinute  < 10 ? "0" : "") + String(onMinute))
+        : "unset";
+
+      String offStr = haveOff
+        ? (String(offHour) + ":" + (offMinute < 10 ? "0" : "") + String(offMinute))
+        : "unset";
+
+      logPrint("[SHELLY] Schedule applied for switchId=" + String(switchId) +
+               " on " + dev.ip + ":" + String(port) +
+               " ON=" + onStr + " OFF=" + offStr + " (all days)");
     }
   }
 
   return v;
 }
-
 
 // =======================
 // Reset Shelly energy counters (best-effort).
