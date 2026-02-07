@@ -550,6 +550,49 @@ window.addEventListener('DOMContentLoaded', () => {
     // avoid pointless DOM writes (each write can trigger style/layout)
     if (el.textContent !== next) el.textContent = next;
   };
+
+  // ---------- Auto-check (runs once) ----------
+  // This helps detect missing/renamed DOM element IDs without breaking the UI.
+  function autoCheckShellyUI(){
+    try{
+      const must = [
+        'shellyMainInfo','shellyLightInfo','shellyHeatInfo','shellyHumInfo','shellyFanInfo'
+      ];
+      const optional = [
+        'shellyLightOnTime','shellyLightDayHours','shellyLightOffTime'
+      ];
+
+      const missingMust = must.filter(id => !document.getElementById(id));
+      const missingOpt  = optional.filter(id => !document.getElementById(id));
+
+      if (missingMust.length) {
+        console.warn('[AUTO-CHECK] Missing Shelly info elements:', missingMust.join(', '));
+      }
+      if (missingOpt.length) {
+        console.warn('[AUTO-CHECK] Missing Light schedule elements (optional):', missingOpt.join(', '));
+      }
+
+      // Basic sanity check: can we fetch /api/state?
+      fetch('/api/state', { cache: 'no-store' })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(s => {
+          const line = s?.['settings.shelly.light.line'];
+          if (typeof line === 'string' && line.length) {
+            // ok
+          } else {
+            console.warn('[AUTO-CHECK] /api/state has no settings.shelly.light.line (yet).');
+          }
+        })
+        .catch(() => {
+          console.warn('[AUTO-CHECK] /api/state not reachable (yet).');
+        });
+
+    }catch(e){}
+  }
+
   const isNum = x => typeof x === 'number' && !Number.isNaN(x);
   const escapeHtml = (s) => {
     const str = String(s);
@@ -1154,6 +1197,9 @@ if (!statusActive) return;
   // ---------- History charts (/api/history) ----------
   let historyTimer = null;
 
+  // ---------- Shelly light schedule poll (only active on Shelly page) ----------
+  window._shellyLightTimer = null;
+
   function getActivePageId(){
     const p = document.querySelector('.page.active');
     return p ? p.id : '';
@@ -1578,6 +1624,9 @@ if (!statusActive) return;
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const s = await res.json();
 
+      // Update Shelly info lines (if elements exist)
+      updateShellyInfoLinesFromState(s);
+
       const setLine = (key, elId) => {
         const el = document.getElementById(elId);
         if (!el) return;
@@ -1608,6 +1657,24 @@ if (!statusActive) return;
     }
 
     if (activeId === 'logging') startWebLog(); else stopWebLog();
+
+    // SHELLY light schedule poll: keep UI in sync (fixes sporadic updates)
+    if (activeId === 'shelly') {
+      try { initLightScheduleControls(); } catch(e) {}
+      // Immediate update (no waiting for timer)
+      try { fetchStateAndUpdateShellyUI(); } catch(e) {}
+      if (!window._shellyLightTimer) {
+        window._shellyLightTimer = setInterval(() => {
+          // Immediate update (no waiting for timer)
+      try { fetchStateAndUpdateShellyUI(); } catch(e) {}
+        }, 15000);
+      }
+    } else {
+      if (window._shellyLightTimer) {
+        clearInterval(window._shellyLightTimer);
+        window._shellyLightTimer = null;
+      }
+    }
 
     if (activeId === 'shelly') {
       // Load Shelly summary lines (IP | Gen | ON | OFF) from /api/state
@@ -1998,6 +2065,114 @@ document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
 
   
 
+
+
+// ---------- Shelly info line updater (optional DOM elements) ----------
+// If these elements exist in index_html.h, they will be filled from /api/state:
+//   <div id="shellyMainInfo"></div>
+//   <div id="shellyLightInfo"></div>
+//   <div id="shellyHeatInfo"></div>
+//   <div id="shellyHumInfo"></div>
+//   <div id="shellyFanInfo"></div>
+
+
+// Fetch /api/state and update Shelly info lines (and light schedule controls if present).
+async function fetchStateAndUpdateShellyUI(){
+  try{
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const s = await res.json();
+
+    // Always update info lines (these are simple <div> elements)
+    updateShellyInfoLinesFromState(s);
+
+    // If the Light schedule controls exist, also prefill them
+    try{
+      const onSel  = document.getElementById('shellyLightOnTime');
+      const daySel = document.getElementById('shellyLightDayHours');
+      const offInp = document.getElementById('shellyLightOffTime');
+      if (onSel && daySel && offInp) {
+        let onStr  = s['settings.shelly.light.on'];
+        let offStr = s['settings.shelly.light.off'];
+
+        // Fallback: parse from "settings.shelly.light.line"
+        if ((!onStr || !offStr) && typeof s['settings.shelly.light.line'] === 'string') {
+          const line = s['settings.shelly.light.line'];
+          const mOn  = line.match(/\bON\s+(\d{1,2}:\d{2})\b/i);
+          const mOff = line.match(/\bOFF\s+(\d{1,2}:\d{2})\b/i);
+          if (!onStr  && mOn)  onStr  = mOn[1];
+          if (!offStr && mOff) offStr = mOff[1];
+        }
+
+        // Apply ON
+        if (typeof onStr === 'string' && onStr.includes(':')) {
+          onSel.value = onStr;
+        }
+
+        // Derive day hours from ON/OFF if possible (12..23)
+        if (typeof onStr === 'string' && typeof offStr === 'string') {
+          const onMin = parseHHMM(onStr);
+          const offMin = parseHHMM(offStr);
+          if (onMin != null && offMin != null) {
+            let diff = offMin - onMin;
+            if (diff <= 0) diff += 1440;
+            const hours = Math.round(diff / 60);
+            daySel.value = String(clampInt(hours, 12, 23));
+          }
+        }
+
+        // Compute OFF from UI values
+        const onMin2 = parseHHMM(onSel.value);
+        const dayHours2 = clampInt(daySel.value, 12, 23);
+        offInp.value = (onMin2 != null) ? fmtHHMM((onMin2 + dayHours2 * 60) % 1440) : '—';
+      }
+    } catch(e) {}
+
+    return s;
+  } catch(e) {
+    // No console error by default; uncomment if needed:
+    // console.warn('[SHELLY] fetchStateAndUpdateShellyUI failed', e);
+    return null;
+  }
+}
+function updateShellyInfoLinesFromState(s){
+  try{
+    const map = [
+        // Each entry can define multiple possible DOM ids (to match existing HTML).
+        { ids: ['shellyMainInfo'],                        key: 'main'  },
+        { ids: ['shellyLightInfo'],                       key: 'light' },
+        { ids: ['shellyHeatInfo','shellyHeaterInfo'],     key: 'heat'  },
+        { ids: ['shellyHumInfo','shellyHumidifierInfo'],  key: 'hum'   },
+        { ids: ['shellyFanInfo'],                         key: 'fan'   },
+      ];
+
+    for (const it of map) {
+      const el = document.getElementById(it.id);
+      if (!el) continue;
+
+      const base = `settings.shelly.${it.key}`;
+      const line = s[`${base}.line`];
+      if (typeof line === 'string' && line.length) {
+        for (const el of els) el.textContent = line;
+        continue;
+      }
+
+      const ip  = s[`${base}.ip`];
+      const gen = s[`${base}.gen`];
+      const on  = s[`${base}.on`];
+      const off = s[`${base}.off`];
+
+      const hasAny = (ip != null || gen != null || on != null || off != null);
+      if (!hasAny) { for (const el of els) el.textContent = '—'; continue; }
+
+      const genTxt = (gen === null || typeof gen === 'undefined') ? '—' : String(gen);
+      const onTxt  = (on  === null || typeof on  === 'undefined') ? '—' : String(on);
+      const offTxt = (off === null || typeof off === 'undefined') ? '—' : String(off);
+      el.textContent = `${ip || '—'} | Gen ${genTxt} | ON ${onTxt} | OFF ${offTxt}`;
+    }
+  } catch(e) {}
+}
+
 // ---------- Light schedule UI (Shelly settings page) ----------
 // Requires these elements in index_html.h (Shelly page):
 //   <select id="shellyLightOnTime"></select>
@@ -2063,54 +2238,11 @@ function initLightScheduleControls(){
 //   settings.shelly.light.desiredOn  (string "HH:MM")
 //   settings.shelly.light.dayHours   (number 12..23)
 async function loadLightScheduleFromState(){
-  const onSel  = document.getElementById('shellyLightOnTime');
-  const daySel = document.getElementById('shellyLightDayHours');
-  const offInp = document.getElementById('shellyLightOffTime');
-  if (!onSel || !daySel || !offInp) return;
-
-  try {
-    const res = await fetch('/api/state', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const s = await res.json();
-
-    // Current device schedule (readback)
-    const onStr  = s['settings.shelly.light.on'];   // "HH:MM" or null
-    const offStr = s['settings.shelly.light.off'];  // "HH:MM" or null
-
-    // Future stored settings (optional)
-    const desiredOn = s['settings.shelly.light.desiredOn'];      // "HH:MM"
-    const dayHoursSetting = s['settings.shelly.light.dayHours']; // number 12..23
-
-    // Prefer stored desired settings if present
-    const chosenOn = (typeof desiredOn === 'string' && desiredOn.includes(':')) ? desiredOn : onStr;
-
-    if (typeof chosenOn === 'string' && chosenOn.includes(':')) {
-      onSel.value = chosenOn;
-    }
-
-    if (typeof dayHoursSetting === 'number' && isFinite(dayHoursSetting)) {
-      daySel.value = String(clampInt(dayHoursSetting, 12, 23));
-    } else if (typeof onStr === 'string' && typeof offStr === 'string') {
-      const onMin = parseHHMM(onStr);
-      const offMin = parseHHMM(offStr);
-      if (onMin != null && offMin != null) {
-        let diff = offMin - onMin;
-        if (diff <= 0) diff += 1440; // wrap midnight
-        const hours = Math.round(diff / 60);
-        daySel.value = String(clampInt(hours, 12, 23));
-      }
-    }
-
-    // Compute OFF from UI values (single source of truth for display)
-    const onMin2 = parseHHMM(onSel.value);
-    const dayHours2 = clampInt(daySel.value, 12, 23);
-    if (onMin2 != null) offInp.value = fmtHHMM((onMin2 + dayHours2 * 60) % 1440);
-    else offInp.value = '—';
-
-  } catch (e) {
-    console.warn('[SHELLY] loadLightScheduleFromState failed', e);
+    // Backward-compatible wrapper
+    await fetchStateAndUpdateShellyUI();
   }
-}
+
+
 
 // ---------- Variables / State page ----------
   let _lastStateObj = null;
@@ -2163,6 +2295,18 @@ async function loadLightScheduleFromState(){
   const initiallyActive = document.querySelector('.page.active')?.id || 'status';
   onPageChanged(initiallyActive);
   updateRelayButtons();
+
+
+  // Initialize Light schedule controls once on boot as well.
+  // Even if the Shelly page isn't active yet, the elements exist in the DOM (hidden),
+  // so we can safely prepare them here.
+  try {
+    initLightScheduleControls();
+    loadLightScheduleFromState();
+  } catch(e) {
+    console.warn('[SHELLY] light schedule init failed', e);
+  }
+
 
 }); // end DOMContentLoaded
 
