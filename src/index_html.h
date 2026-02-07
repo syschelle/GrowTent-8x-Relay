@@ -310,31 +310,31 @@ const char* htmlPage = R"rawliteral(
       <div class="relay-card" data-relay="shellyMainSw">
         <div class="relay-title" data-i18n="status.shellyMainSw">Hauptschalter</div>
         <div id="shelly-main-switch-state" class="shelly-status shelly-off"></div>
-        <div class="info">%SHELLYMAINIP%</div>
+        <div class="info" id="shellyMainInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('mainSw')">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyLight">
         <div class="relay-title" data-i18n="status.shellyLight">Grow Licht</div>
         <div id="shelly-light-switch-state" class="shelly-status shelly-off"></div>
-        <div class="info">%SHELLYLIGHTIP%</div>
+        <div class="info" id="shellyLightInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('light')">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
         <div id="shelly-heater-state" class="shelly-status shelly-off"></div>
-        <div class="info">%SHELLYHEATERIP%</div>
+        <div class="info" id="shellyHeaterInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('heater')">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyHumidifier">
         <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
         <div id="shelly-humidifier-state" class="shelly-status shelly-off"></div>
-        <div class="info">%SHELLYHUMIDIFIERIP%</div>
+        <div class="info" id="shellyHumidifierInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('humidifier')">Toggle</button>
       </div>
       <div class="relay-card" data-relay="shellyFan">
         <div class="relay-title" data-i18n="status.shellyFan">Ventilator</div>
         <div id="shelly-fan-state" class="shelly-status shelly-off"></div>
-        <div class="info">%SHELLYFANIP%</div>
+        <div class="info" id="shellyFanInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('fan')">Toggle</button>
       </div>
     </div>
@@ -416,6 +416,9 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHLIGHTKIND2%>Gen2</option>
             <option value="3" %SHLIGHTKIND3%>Gen3</option>
           </select>
+          <select id="shellyLightOnTime"></select>
+          <select id="shellyLightDayHours"></select>
+          <input id="shellyLightOffTime" type="text" readonly value="—">
         </div>
       </div>
 

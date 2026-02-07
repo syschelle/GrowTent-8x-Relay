@@ -18,6 +18,17 @@
 #endif
 
 // -------------------- Structs (erst Typen, dann Settings) --------------------
+struct DailySchedule {
+    int onHour;
+    int onMinute;
+    int offHour;
+    int offMinute;
+};
+
+struct ShellySchedules {
+    DailySchedule days[7];  // 0 = Montag, 6 = Sonntag
+};
+
 
 // Shelly device values
 struct ShellyValues {
@@ -33,6 +44,7 @@ struct ShellyDevice {
   int    gen  = 0;
   float  energyOffsetWh = 0.0f; // baseline to show 0 at "new grow"
   ShellyValues values;
+  ShellySchedules schedules;
 };
 
 // Shelly overall settings
