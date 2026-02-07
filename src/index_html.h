@@ -404,7 +404,6 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
             <option value="3" %SHMAINSWKIND3%>Gen3</option>
           </select>
-          <div class="hint" id="shellyMainLine">—</div>
         </div>
       </div>
 
@@ -417,7 +416,9 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHLIGHTKIND2%>Gen2</option>
             <option value="3" %SHLIGHTKIND3%>Gen3</option>
           </select>
-          <div class="hint" id="shellyLightLine">—</div>
+          <select id="shellyLightOnTime"></select>
+          <select id="shellyLightDayHours"></select>
+          <input id="shellyLightOffTime" type="text" readonly value="—">
         </div>
       </div>
 
@@ -430,7 +431,6 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHHEATKIND2%>Gen2</option>
             <option value="3" %SHHEATKIND3%>Gen3</option>
           </select>
-          <div class="hint" id="shellyHeaterLine">—</div>
         </div>
       </div>
 
@@ -443,7 +443,6 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHHUMIDKIND2%>Gen2</option>
             <option value="3" %SHHUMIDKIND3%>Gen3</option>
           </select>
-          <div class="hint" id="shellyHumidifierLine">—</div>
         </div>
       </div>
 
@@ -456,7 +455,6 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHFANKIND2%>Gen2</option>
             <option value="3" %SHFANKIND3%>Gen3</option>
           </select>
-          <div class="hint" id="shellyFanLine">—</div>
         </div>
       </div>
 

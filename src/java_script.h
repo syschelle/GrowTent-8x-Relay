@@ -694,6 +694,32 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Date / Time helpers ----------
   function pad2(n){ return String(n).padStart(2,'0'); }
+
+
+// ---------- Light schedule helpers (ON time + day hours -> OFF time) ----------
+function parseHHMM(str){
+  // Accepts "H:MM" or "HH:MM"
+  const s = String(str || '').trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = Number(m[1]), mm = Number(m[2]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+  return hh * 60 + mm;
+}
+
+function fmtHHMM(totalMin){
+  const t = ((totalMin % 1440) + 1440) % 1440;
+  const hh = Math.floor(t / 60);
+  const mm = t % 60;
+  return `${hh}:${pad2(mm)}`;
+}
+
+function clampInt(x, lo, hi){
+  const n = Number(x);
+  if (!Number.isFinite(n)) return lo;
+  return Math.min(hi, Math.max(lo, Math.round(n)));
+}
   function getDefaultDateFormatFor(lang){ return lang === 'de' ? 'DD.MM.YYYY' : 'YYYY-MM-DD'; }
   function getDefaultTimeFormatFor(lang){ return lang === 'de' ? 'HH:mm' : 'hh:mm A'; }
   function formatDateWithPattern(d, pat){
@@ -1970,7 +1996,123 @@ document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
 
   
 
-  // ---------- Variables / State page ----------
+  
+
+// ---------- Light schedule UI (Shelly settings page) ----------
+// Requires these elements in index_html.h (Shelly page):
+//   <select id="shellyLightOnTime"></select>
+//   <select id="shellyLightDayHours"></select>
+//   <input  id="shellyLightOffTime" readonly>
+function initLightScheduleControls(){
+  const onSel  = document.getElementById('shellyLightOnTime');
+  const daySel = document.getElementById('shellyLightDayHours');
+  const offInp = document.getElementById('shellyLightOffTime');
+  if (!onSel || !daySel || !offInp) return;
+
+  // Fill ON select (15-minute steps)
+  if (!onSel._filled) {
+    onSel.innerHTML = '';
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const opt = document.createElement('option');
+        const v = `${h}:${pad2(m)}`;
+        opt.value = v;
+        opt.textContent = v;
+        onSel.appendChild(opt);
+      }
+    }
+    onSel._filled = true;
+  }
+
+  // Fill Day length select (12..23 hours)
+  if (!daySel._filled) {
+    daySel.innerHTML = '';
+    for (let h = 12; h <= 23; h++) {
+      const opt = document.createElement('option');
+      opt.value = String(h);
+      opt.textContent = String(h);
+      daySel.appendChild(opt);
+    }
+    daySel._filled = true;
+  }
+
+  function recalcOff(){
+    const onMin = parseHHMM(onSel.value);
+    const dayHours = clampInt(daySel.value, 12, 23);
+    if (onMin == null) { offInp.value = '—'; return; }
+    const offMin = (onMin + dayHours * 60) % 1440;
+    offInp.value = fmtHHMM(offMin);
+  }
+
+  const markDirty = () => {
+    try {
+      window.showStatusHint?.(I18N?.['settings.unsaved'] || 'Changes pending – please save');
+    } catch(e) {}
+  };
+
+  // Recompute OFF time live
+  onSel.addEventListener('change', () => { recalcOff(); markDirty(); });
+  daySel.addEventListener('change', () => { recalcOff(); markDirty(); });
+
+  // Initial calc
+  recalcOff();
+}
+
+// Prefill ON/OFF from /api/state (read-only device schedule).
+// If you later store settings, add:
+//   settings.shelly.light.desiredOn  (string "HH:MM")
+//   settings.shelly.light.dayHours   (number 12..23)
+async function loadLightScheduleFromState(){
+  const onSel  = document.getElementById('shellyLightOnTime');
+  const daySel = document.getElementById('shellyLightDayHours');
+  const offInp = document.getElementById('shellyLightOffTime');
+  if (!onSel || !daySel || !offInp) return;
+
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const s = await res.json();
+
+    // Current device schedule (readback)
+    const onStr  = s['settings.shelly.light.on'];   // "HH:MM" or null
+    const offStr = s['settings.shelly.light.off'];  // "HH:MM" or null
+
+    // Future stored settings (optional)
+    const desiredOn = s['settings.shelly.light.desiredOn'];      // "HH:MM"
+    const dayHoursSetting = s['settings.shelly.light.dayHours']; // number 12..23
+
+    // Prefer stored desired settings if present
+    const chosenOn = (typeof desiredOn === 'string' && desiredOn.includes(':')) ? desiredOn : onStr;
+
+    if (typeof chosenOn === 'string' && chosenOn.includes(':')) {
+      onSel.value = chosenOn;
+    }
+
+    if (typeof dayHoursSetting === 'number' && isFinite(dayHoursSetting)) {
+      daySel.value = String(clampInt(dayHoursSetting, 12, 23));
+    } else if (typeof onStr === 'string' && typeof offStr === 'string') {
+      const onMin = parseHHMM(onStr);
+      const offMin = parseHHMM(offStr);
+      if (onMin != null && offMin != null) {
+        let diff = offMin - onMin;
+        if (diff <= 0) diff += 1440; // wrap midnight
+        const hours = Math.round(diff / 60);
+        daySel.value = String(clampInt(hours, 12, 23));
+      }
+    }
+
+    // Compute OFF from UI values (single source of truth for display)
+    const onMin2 = parseHHMM(onSel.value);
+    const dayHours2 = clampInt(daySel.value, 12, 23);
+    if (onMin2 != null) offInp.value = fmtHHMM((onMin2 + dayHours2 * 60) % 1440);
+    else offInp.value = '—';
+
+  } catch (e) {
+    console.warn('[SHELLY] loadLightScheduleFromState failed', e);
+  }
+}
+
+// ---------- Variables / State page ----------
   let _lastStateObj = null;
 
   function renderVars(stateObj, filterText) {
