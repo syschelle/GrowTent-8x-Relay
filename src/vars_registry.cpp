@@ -46,6 +46,51 @@ static String g_buildTag() {
     return tag;
 }
 
+static String jTimeOrNull(int h, int m) {
+  if (h < 0 || m < 0) return "null";
+  String s = "\"";
+  s += String(h);
+  s += ":";
+  if (m < 10) s += "0";
+  s += String(m);
+  s += "\"";
+  return s;
+}
+
+static String jShellyLine(const ShellyDevice& d) {
+  // Uses day 0 because your schedule is "same for every day"
+  const DailySchedule& ds = d.schedules.days[0];
+
+  String line;
+  line.reserve(48);
+
+  line += d.ip;
+  line += " | Gen ";
+  line += String(d.gen);
+  line += " | ON ";
+
+  if (ds.onHour >= 0 && ds.onMinute >= 0) {
+    line += String(ds.onHour);
+    line += ":";
+    if (ds.onMinute < 10) line += "0";
+    line += String(ds.onMinute);
+  } else {
+    line += "--:--";
+  }
+
+  line += " | OFF ";
+
+  if (ds.offHour >= 0 && ds.offMinute >= 0) {
+    line += String(ds.offHour);
+    line += ":";
+    if (ds.offMinute < 10) line += "0";
+    line += String(ds.offMinute);
+  } else {
+    line += "--:--";
+  }
+
+  return jStr(line);
+}
 
 // -------------- getters --------------
 
@@ -104,15 +149,38 @@ static String g_notify_gotifyEnabled() { return jBool(settings.notify.gotifyEnab
 static String g_notify_gotifyServer() { return jStr(settings.notify.gotifyServer); }
 static String g_notify_gotifyToken() { return jMasked(); }
 
-// Shelly settings (mask password)
+// Shelly settings
+// For the main device we also show schedule & generation in one line
 static String g_sh_main_ip() { return jStr(settings.shelly.main.ip); }
 static String g_sh_main_gen() { return jInt(settings.shelly.main.gen); }
+static String g_sh_main_on()  { return jTimeOrNull(settings.shelly.main.schedules.days[0].onHour,  settings.shelly.main.schedules.days[0].onMinute); }
+static String g_sh_main_off() { return jTimeOrNull(settings.shelly.main.schedules.days[0].offHour, settings.shelly.main.schedules.days[0].offMinute); }
+static String g_sh_main_line(){ return jShellyLine(settings.shelly.main); }
+// For the light devices we show schedule & generation in one line
+static String g_sh_light_ip()  { return jStr(settings.shelly.light.ip); }
+static String g_sh_light_gen() { return jInt(settings.shelly.light.gen); }
+static String g_sh_light_on()  { return jTimeOrNull(settings.shelly.light.schedules.days[0].onHour,  settings.shelly.light.schedules.days[0].onMinute); }
+static String g_sh_light_off() { return jTimeOrNull(settings.shelly.light.schedules.days[0].offHour, settings.shelly.light.schedules.days[0].offMinute); }
+static String g_sh_light_line(){ return jShellyLine(settings.shelly.light); }
+// For heat we don't have schedule, so show IP + generation in one line
 static String g_sh_heat_ip() { return jStr(settings.shelly.heat.ip); }
 static String g_sh_heat_gen() { return jInt(settings.shelly.heat.gen); }
+static String g_sh_heat_on()  { return jTimeOrNull(settings.shelly.heat.schedules.days[0].onHour,  settings.shelly.heat.schedules.days[0].onMinute); }
+static String g_sh_heat_off() { return jTimeOrNull(settings.shelly.heat.schedules.days[0].offHour, settings.shelly.heat.schedules.days[0].offMinute); }
+static String g_sh_heat_line(){ return jShellyLine(settings.shelly.heat); }
+// For humidity we show IP + generation in one line
 static String g_sh_hum_ip() { return jStr(settings.shelly.hum.ip); }
 static String g_sh_hum_gen() { return jInt(settings.shelly.hum.gen); }
+static String g_sh_hum_on()  { return jTimeOrNull(settings.shelly.hum.schedules.days[0].onHour,  settings.shelly.hum.schedules.days[0].onMinute); }
+static String g_sh_hum_off() { return jTimeOrNull(settings.shelly.hum.schedules.days[0].offHour, settings.shelly.hum.schedules.days[0].offMinute); }
+static String g_sh_hum_line(){ return jShellyLine(settings.shelly.hum); }
+// For humidity we show IP + generation in one line
 static String g_sh_fan_ip() { return jStr(settings.shelly.fan.ip); }
 static String g_sh_fan_gen() { return jInt(settings.shelly.fan.gen); }
+static String g_sh_fan_on()  { return jTimeOrNull(settings.shelly.fan.schedules.days[0].onHour,  settings.shelly.fan.schedules.days[0].onMinute); }
+static String g_sh_fan_off() { return jTimeOrNull(settings.shelly.fan.schedules.days[0].offHour, settings.shelly.fan.schedules.days[0].offMinute); }
+static String g_sh_fan_line(){ return jShellyLine(settings.shelly.fan); }
+// For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
 
@@ -194,12 +262,29 @@ const VarItem VARS[] = {
   // --- shelly ---
   {"settings.shelly.main.ip", g_sh_main_ip, false, "settings.shelly"},
   {"settings.shelly.main.gen", g_sh_main_gen, false, "settings.shelly"},
+  {"settings.shelly.main.on",  g_sh_main_on,  false, "settings.shelly"},
+  {"settings.shelly.main.off", g_sh_main_off, false, "settings.shelly"},
+  {"settings.shelly.main.line", g_sh_main_line, false, "settings.shelly"},
+  {"settings.shelly.light.ip", g_sh_light_ip, false, "settings.shelly"},
+  {"settings.shelly.light.gen", g_sh_light_gen, false, "settings.shelly"},
+  {"settings.shelly.light.on",  g_sh_light_on,  false, "settings.shelly"},
+  {"settings.shelly.light.off", g_sh_light_off, false, "settings.shelly"},
+  {"settings.shelly.light.line", g_sh_light_line, false, "settings.shelly"},
   {"settings.shelly.heat.ip", g_sh_heat_ip, false, "settings.shelly"},
   {"settings.shelly.heat.gen", g_sh_heat_gen, false, "settings.shelly"},
+  {"settings.shelly.heat.on",  g_sh_heat_on,  false, "settings.shelly"},
+  {"settings.shelly.heat.off", g_sh_heat_off, false, "settings.shelly"},
+  {"settings.shelly.heat.line", g_sh_heat_line, false, "settings.shelly"},
   {"settings.shelly.hum.ip", g_sh_hum_ip, false, "settings.shelly"},
   {"settings.shelly.hum.gen", g_sh_hum_gen, false, "settings.shelly"},
+  {"settings.shelly.hum.on",  g_sh_hum_on,  false, "settings.shelly"},
+  {"settings.shelly.hum.off", g_sh_hum_off, false, "settings.shelly"},
+  {"settings.shelly.hum.line", g_sh_hum_line, false, "settings.shelly"},
   {"settings.shelly.fan.ip", g_sh_fan_ip, false, "settings.shelly"},
   {"settings.shelly.fan.gen", g_sh_fan_gen, false, "settings.shelly"},
+  {"settings.shelly.fan.on",  g_sh_fan_on,  false, "settings.shelly"},
+  {"settings.shelly.fan.off", g_sh_fan_off, false, "settings.shelly"},
+  {"settings.shelly.fan.line", g_sh_fan_line, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 

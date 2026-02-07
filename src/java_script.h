@@ -1535,6 +1535,40 @@ if (!statusActive) return;
     else stopWebLog();
   });
 
+
+  // ---------- Shelly settings summary line ----------
+  // Reads schedule summary lines from /api/state and shows them on the Shelly settings page.
+  async function loadShellyLines() {
+    const map = {
+      main:  'shellyMainLine',
+      light: 'shellyLightLine',
+      heat:  'shellyHeatLine',
+      hum:   'shellyHumLine',
+      fan:   'shellyFanLine'
+    };
+
+    try {
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const s = await res.json();
+
+      const setLine = (key, elId) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        const v = s[key];
+        el.textContent = (v === null || typeof v === 'undefined') ? '—' : String(v);
+      };
+
+      setLine('settings.shelly.main.line',  map.main);
+      setLine('settings.shelly.light.line', map.light);
+      setLine('settings.shelly.heat.line',  map.heat);
+      setLine('settings.shelly.hum.line',   map.hum);
+      setLine('settings.shelly.fan.line',   map.fan);
+    } catch (e) {
+      console.warn('[SHELLY][JS] loadShellyLines failed:', e);
+    }
+  }
+
   // SPA-Seitenwechsel-Callback
   function onPageChanged(activeId) {
     // Status page has lots of grid cards; keep sensor polling fast there,
@@ -1548,6 +1582,11 @@ if (!statusActive) return;
     }
 
     if (activeId === 'logging') startWebLog(); else stopWebLog();
+
+    if (activeId === 'shelly') {
+      // Load Shelly summary lines (IP | Gen | ON | OFF) from /api/state
+      loadShellyLines();
+    }
 
     if (activeId === 'vars') {
       // Load once when opening the page (and on refresh)
