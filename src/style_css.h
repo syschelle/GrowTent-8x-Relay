@@ -429,6 +429,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .inline-checkbox {
       display: inline-flex;
       gap: 8px;
+      align-items: center;
     }
 
     .twoinone-label {
@@ -624,7 +625,39 @@ const char cssContent[] PROGMEM = R"rawliteral(
     padding:10px 12px;
     border:1px solid var(--border);
     border-radius:var(--radius);
-    background: var(--sidebar-bg);
+    background: var(--side); /* gleiche Farbe wie Sidebar (hell & dunkel) */
+    color: #fff;             /* Lesbarkeit im Light-Theme */
+  }
+
+  .relay-sched-row label{ color: inherit; }
+
+  /* Checkboxen NICHT von "input{width:100%}" kaputt machen */
+  .relay-sched-row input[type="checkbox"]{
+    width:auto;
+    height:auto;
+    padding:0;
+    margin:0;
+    transform:scale(1);
+    accent-color: var(--header);
+  }
+
+  /* Minuten-Inputs: weißer Hintergrund (wie gewünscht) */
+  .relay-sched-row .sched-field.minute input[type="number"]{
+    width: 90px;
+    max-width: 110px;
+    padding: 8px 10px;
+    background: #fff;
+    color: #000;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  :root[data-theme='dark'] .relay-sched-row .sched-field.minute input[type="number"]{
+    background: #e8e8e8;
+    color: #000;
+  }
+
+  .relay-sched-row .sched-field.chk{
+    min-width: 150px;
   }
 
   .relay-sched-name{
@@ -635,7 +668,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
 
   .relay-sched-name-label{
     font-size:0.85em;
-    opacity:0.85;
+    opacity:0.9;
     margin-bottom:4px;
   }
 

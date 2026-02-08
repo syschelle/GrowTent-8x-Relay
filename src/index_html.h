@@ -584,10 +584,14 @@ const char* htmlPage = R"rawliteral(
         <input name="webMaxTank" id="webMaxTank" style="width: 65px;" type="number" value="%MAXTANK%">&nbsp;cm
       </div>
 
+      <div class="spacer"></div>
+      <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
+      </form>
+
         <!-- ESP32 Relay Scheduling -->
         <div class="relay-sched">
-          <h2 class="relay-sched-title" data-i18n="runsettings.espSchedTitle">ESP32 Relay Scheduling</h2>
-          <p class="relay-sched-hint" data-i18n="runsettings.espSchedHint">
+          <h2 class="relay-sched-title" data-i18n="runsetting.relayScheduling">ESP32 Relay Scheduling</h2>
+          <p class="relay-sched-hint" data-i18n="runsetting.relay.minutesHint">
             Minutenformat: <b>0–59</b> (Minute innerhalb der Stunde).
           </p>
 
@@ -603,24 +607,24 @@ const char* htmlPage = R"rawliteral(
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay1Enabled" name="espRelay1Enabled" type="checkbox" %ESPRELAY1_ENABLED_CHECKED%>
-                  <span data-i18n="runsettings.espSchedEnabled">Enabled</span>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
                 </label>
               </div>
 
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay1IfLightOn" name="espRelay1IfLightOn" type="checkbox" %ESPRELAY1_IFLIGHTON_CHECKED%>
-                  <span data-i18n="runsettings.espSchedIfLightOn">wenn Licht an</span>
+                  <span data-i18n="runsetting.relay.ifLightOn">wenn Licht an</span>
                 </label>
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay1OnMin" data-i18n="runsettings.espSchedOnMinute">Einschaltminute</label>
+                <label for="espRelay1OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
                 <input id="espRelay1OnMin" name="espRelay1OnMin" type="number" min="0" max="59" step="1" value="%ESPRELAY1_ONMIN%">
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay1OffMin" data-i18n="runsettings.espSchedOffMinute">Ausschaltminute</label>
+                <label for="espRelay1OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
                 <input id="espRelay1OffMin" name="espRelay1OffMin" type="number" min="0" max="59" step="1" value="%ESPRELAY1_OFFMIN%">
               </div>
             </div>
@@ -635,24 +639,24 @@ const char* htmlPage = R"rawliteral(
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay2Enabled" name="espRelay2Enabled" type="checkbox" %ESPRELAY2_ENABLED_CHECKED%>
-                  <span data-i18n="runsettings.espSchedEnabled">Enabled</span>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
                 </label>
               </div>
 
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay2IfLightOn" name="espRelay2IfLightOn" type="checkbox" %ESPRELAY2_IFLIGHTON_CHECKED%>
-                  <span data-i18n="runsettings.espSchedIfLightOn">wenn Licht an</span>
+                  <span data-i18n="runsetting.relay.ifLightOn">wenn Licht an</span>
                 </label>
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay2OnMin" data-i18n="runsettings.espSchedOnMinute">Einschaltminute</label>
+                <label for="espRelay2OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
                 <input id="espRelay2OnMin" name="espRelay2OnMin" type="number" min="0" max="59" step="1" value="%ESPRELAY2_ONMIN%">
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay2OffMin" data-i18n="runsettings.espSchedOffMinute">Ausschaltminute</label>
+                <label for="espRelay2OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
                 <input id="espRelay2OffMin" name="espRelay2OffMin" type="number" min="0" max="59" step="1" value="%ESPRELAY2_OFFMIN%">
               </div>
             </div>
@@ -667,24 +671,24 @@ const char* htmlPage = R"rawliteral(
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay3Enabled" name="espRelay3Enabled" type="checkbox" %ESPRELAY3_ENABLED_CHECKED%>
-                  <span data-i18n="runsettings.espSchedEnabled">Enabled</span>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
                 </label>
               </div>
 
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay3IfLightOn" name="espRelay3IfLightOn" type="checkbox" %ESPRELAY3_IFLIGHTON_CHECKED%>
-                  <span data-i18n="runsettings.espSchedIfLightOn">wenn Licht an</span>
+                  <span data-i18n="runsetting.relay.ifLightOn">wenn Licht an</span>
                 </label>
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay3OnMin" data-i18n="runsettings.espSchedOnMinute">Einschaltminute</label>
+                <label for="espRelay3OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
                 <input id="espRelay3OnMin" name="espRelay3OnMin" type="number" min="0" max="59" step="1" value="%ESPRELAY3_ONMIN%">
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay3OffMin" data-i18n="runsettings.espSchedOffMinute">Ausschaltminute</label>
+                <label for="espRelay3OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
                 <input id="espRelay3OffMin" name="espRelay3OffMin" type="number" min="0" max="59" step="1" value="%ESPRELAY3_OFFMIN%">
               </div>
             </div>
@@ -699,24 +703,24 @@ const char* htmlPage = R"rawliteral(
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay4Enabled" name="espRelay4Enabled" type="checkbox" %ESPRELAY4_ENABLED_CHECKED%>
-                  <span data-i18n="runsettings.espSchedEnabled">Enabled</span>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
                 </label>
               </div>
 
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay4IfLightOn" name="espRelay4IfLightOn" type="checkbox" %ESPRELAY4_IFLIGHTON_CHECKED%>
-                  <span data-i18n="runsettings.espSchedIfLightOn">wenn Licht an</span>
+                  <span data-i18n="runsetting.relay.ifLightOn">wenn Licht an</span>
                 </label>
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay4OnMin" data-i18n="runsettings.espSchedOnMinute">Einschaltminute</label>
+                <label for="espRelay4OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
                 <input id="espRelay4OnMin" name="espRelay4OnMin" type="number" min="0" max="59" step="1" value="%ESPRELAY4_ONMIN%">
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay4OffMin" data-i18n="runsettings.espSchedOffMinute">Ausschaltminute</label>
+                <label for="espRelay4OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
                 <input id="espRelay4OffMin" name="espRelay4OffMin" type="number" min="0" max="59" step="1" value="%ESPRELAY4_OFFMIN%">
               </div>
             </div>
@@ -731,24 +735,24 @@ const char* htmlPage = R"rawliteral(
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay5Enabled" name="espRelay5Enabled" type="checkbox" %ESPRELAY5_ENABLED_CHECKED%>
-                  <span data-i18n="runsettings.espSchedEnabled">Enabled</span>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
                 </label>
               </div>
 
               <div class="sched-field chk">
                 <label class="inline-checkbox">
                   <input id="espRelay5IfLightOn" name="espRelay5IfLightOn" type="checkbox" %ESPRELAY5_IFLIGHTON_CHECKED%>
-                  <span data-i18n="runsettings.espSchedIfLightOn">wenn Licht an</span>
+                  <span data-i18n="runsetting.relay.ifLightOn">wenn Licht an</span>
                 </label>
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay5OnMin" data-i18n="runsettings.espSchedOnMinute">Einschaltminute</label>
+                <label for="espRelay5OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
                 <input id="espRelay5OnMin" name="espRelay5OnMin" type="number" min="0" max="59" step="1" value="%ESPRELAY5_ONMIN%">
               </div>
 
               <div class="sched-field minute">
-                <label for="espRelay5OffMin" data-i18n="runsettings.espSchedOffMinute">Ausschaltminute</label>
+                <label for="espRelay5OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
                 <input id="espRelay5OffMin" name="espRelay5OffMin" type="number" min="0" max="59" step="1" value="%ESPRELAY5_OFFMIN%">
               </div>
             </div>
@@ -759,7 +763,6 @@ const char* htmlPage = R"rawliteral(
         <div class="spacer"></div>
         <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
-    </form>
 
     <!-- setting section -->
     <form action="/savesettings" method="POST">
