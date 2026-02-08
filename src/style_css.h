@@ -593,4 +593,67 @@ const char cssContent[] PROGMEM = R"rawliteral(
     border-color: rgba(255,80,80,0.35);
   }
 
+  /* --- ESP32 Relay Scheduling (Run Settings) --- */
+  .relay-sched{
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+  }
+
+  .relay-sched-title{
+    margin:0 0 8px 0;
+  }
+
+  .relay-sched-hint{
+    margin:0 0 12px 0;
+    font-size:0.9em;
+    opacity:0.85;
+  }
+
+  .relay-sched-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .relay-sched-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:flex-end;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    background: var(--sidebar-bg);
+  }
+
+  .relay-sched-name{
+    flex:1 1 170px;
+    min-width:160px;
+    max-width:220px;
+  }
+
+  .relay-sched-name-label{
+    font-size:0.85em;
+    opacity:0.85;
+    margin-bottom:4px;
+  }
+
+  .relay-sched-name-value{
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .sched-field.chk{
+    flex:0 0 auto;
+    min-width:150px;
+  }
+
+  .sched-field.minute{
+    flex:0 1 160px;
+    min-width:140px;
+}
+
 )rawliteral";

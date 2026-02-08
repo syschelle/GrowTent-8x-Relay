@@ -120,6 +120,13 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
   "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
   "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },
+  "relaySched.Title":   { de: "ESP32 Relais Zeitplan", en: "ESP32 Relay scheduling" },
+  "relaySched.Hint":    { de: "Minutenformat: 0–59 (Minute innerhalb der Stunde). Beispiel: XX:15 → 15.", en: "Minute format: 0–59 (minute within the hour). Example: XX:15 → 15." },
+  "relaySched.Enabled": { de: "aktiv", en: "enabled" },
+  "relaySched.IfLightOn": { de: "wenn Licht an", en: "if light on" },
+  "relaySched.OnMinute": { de: "Einschaltminute", en: "on minute" },
+  "relaySched.OffMinute": { de: "Ausschaltminute", en: "off minute" },
+  "relaySched.Min":     { de: "min", en: "min" },
 
   "status.relayOn": { de: "einschalten (10s)", en: "turn on (10s)" },
 
